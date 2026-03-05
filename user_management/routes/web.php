@@ -1,33 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\UserController;
 
+Route::redirect('/', '/users');
 
-Route::get('/', function () {
-    return view('profile.show');
-});
-
-/*
-Route::post('/login', function (Request $request) {
-    $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
-
-    return back()->with('success', 'Login form submitted successfully.');
-});
-
-
-Route::middleware(['auth'])->group(function () {
-
-    // Home
-    Route::get('/', [HomeController::class, 'index'])->name('home');
-
-    // Profile (Read Only)
-    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
-
-});
- */
+Route::resource('users', UserController::class);
+Route::resource('offices', OfficeController::class);
+Route::resource('roles', RoleController::class);
+Route::resource('permissions', PermissionController::class)->except(['destroy']);
+Route::resource('activity-logs', ActivityLogController::class)->only(['index', 'show', 'destroy']);

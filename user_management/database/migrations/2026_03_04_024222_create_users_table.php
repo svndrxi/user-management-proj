@@ -13,12 +13,27 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+
+            $table->string('employee_id')->unique();
+            $table->string('first_name');
+            $table->string('middle_name')->nullable();
+            $table->string('last_name');
+
+            $table->string('username')->unique();
+
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            $table->foreignId('office_id')->constrained('offices')->onDelete('cascade');
+
+            $table->foreignId('role_id')->constrained('roles')->onDelete('restrict');
+
+            $table->boolean('is_active')->default(true);
+
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes(); // adds deleted_at column
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
