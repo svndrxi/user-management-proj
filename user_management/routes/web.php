@@ -4,10 +4,17 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AuthController;
 
+Route::middleware('guest')->group(function () {
+    Route::view('/', 'frontend.login')->name('frontend.login');
+    Route::post('/login', [AuthController::class, 'login'])->name('frontend.login.submit');
+});
 
-Route::get('/', function () {
-    return view('profile.show');
+Route::middleware('auth')->group(function () {
+    Route::view('/admin-home', 'frontend.admin_home')->name('frontend.admin.home');
+    Route::view('/user-home', 'frontend.users_home')->name('frontend.user.home');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('frontend.logout');
 });
 
 /*
