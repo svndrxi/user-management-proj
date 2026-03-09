@@ -68,7 +68,10 @@
                 <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clip-rule="evenodd"/>
               </svg>
             </div>
-            <h2 class="profile-name">{{ $fullName !== ',' ? $fullName : 'N/A' }}</h2>
+            <div class="profile-identity">
+              <h2 class="profile-name">{{ $fullName !== ',' ? $fullName : 'N/A' }}</h2>
+              <p class="profile-role">User</p>
+            </div>
           </div>
           <div class="profile-divider"></div>
           <div class="profile-body">
@@ -88,12 +91,12 @@
                   <span class="info-value">{{ $authUser?->email ?? 'N/A' }}</span>
                 </div>
                 <div class="info-field">
-                  <label>Account Role:</label>
-                  <span class="info-value">{{ $authUser?->role?->name ?? 'N/A' }}</span>
-                </div>
-                <div class="info-field">
                   <label>Employee ID:</label>
                   <span class="info-value">{{ $authUser?->employee_id ?? 'N/A' }}</span>
+                </div>
+                <div class="info-field">
+                  <label>Last Visited:</label>
+                  <span class="info-value" id="userLastVisited">-</span>
                 </div>
               </div>
             </div>

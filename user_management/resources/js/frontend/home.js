@@ -30,9 +30,9 @@ const sampleAuditLogs = [
 ];
 
 // ===== STATE =====
-let usersData = [...sampleUsers];
+let usersData = [];
 let archivedUsers = [];   // ← archived users live here
-let auditData = [...sampleAuditLogs];
+let auditData = [];
 let currentPage = 1;
 let auditPage = 1;
 let archivePage = 1;
@@ -42,13 +42,26 @@ let sortOrder = 'asc';
 let filterRole = 'all';
 let searchQuery = '';
 let selectedUser = null;
-let rolesData = [];
-let officesData = [];
+let selectedArchivedUser = null;
+let selectedUserIds = new Set();
+let selectedArchivedUserIds = new Set();
+const REQUIRED_EMAIL_DOMAIN = 'lra.gov.ph';
+let addEmailDomainToastShown = false;
+const duplicateToastShown = {
+  addEmpId: false,
+  addUsername: false,
+  addEmail: false,
+  editEmpId: false,
+  editUsername: false,
+  editEmail: false,
+};
 
 // Archive list filter state
 let archiveSortField = null;
 let archiveSortOrder = 'asc';
 let archiveFilterRole = 'all';
+let rolesData = [];
+let officesData = [];
 
 function normalizeUser(u) {
   return {
@@ -163,12 +176,35 @@ Object.defineProperties(window, {
   },
 });
 
+function getPageTitle(pageId) {
+  const titles = {
+    profilePage: 'LRA Profile',
+    userManagementPage: 'LRA User Management',
+    auditLogsPage: 'LRA Activity Logs',
+  };
+
+  return titles[pageId] || 'LRA User Management System';
+}
+
+function updatePageTitle(pageId) {
+  document.title = getPageTitle(pageId);
+}
+
+function roleToBadgeClass(role) {
+  return String(role ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '');
+}
+
 // ===== NAVIGATION =====
 function navigate(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(pageId).classList.add('active');
   document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+  updatePageTitle(pageId);
 
   // Always reset User Management back to the main list when navigating away and back
   if (pageId === 'userManagementPage') {
@@ -183,17 +219,220 @@ async function openArchiveList() {
   document.getElementById('userManagementMain').style.display = 'none';
   document.getElementById('archiveListPanel').style.display = 'block';
   archivePage = 1;
-  try {
-    await loadArchivedUsersFromApi();
-  } catch (e) {
-    showToast(e.message || 'Failed to load archived users.', 'error');
-    renderArchive();
-  }
+  renderArchive();
+  updateBulkActionUI();
 }
 
 function closeArchiveList() {
   document.getElementById('archiveListPanel').style.display = 'none';
   document.getElementById('userManagementMain').style.display = 'block';
+  updateBulkActionUI();
+}
+
+function getVisibleUserRows() {
+  const data = getFilteredUsers();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  return data.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+}
+
+function getVisibleArchivedRows() {
+  const data = getFilteredArchive();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (archivePage > totalPages) archivePage = totalPages;
+  return data.slice((archivePage - 1) * ROWS_PER_PAGE, archivePage * ROWS_PER_PAGE);
+}
+
+function setBulkActionsVisible(element, isVisible) {
+  if (!element) return;
+
+  const currentlyVisible = element.style.display !== 'none';
+
+  if (isVisible && !currentlyVisible) {
+    element.style.display = 'flex';
+
+    // Let the browser paint first so the transition can animate in.
+    requestAnimationFrame(() => {
+      element.classList.add('bulk-actions-visible');
+    });
+  }
+
+  if (!isVisible && currentlyVisible) {
+    element.classList.remove('bulk-actions-visible');
+    element.style.display = 'none';
+  }
+}
+
+function updateBulkActionUI() {
+  const userBulk = document.getElementById('userBulkActions');
+  const userCount = document.getElementById('userSelectedCount');
+  const archiveBulk = document.getElementById('archiveBulkActions');
+  const archiveCount = document.getElementById('archiveSelectedCount');
+
+  if (userBulk && userCount) {
+    setBulkActionsVisible(userBulk, selectedUserIds.size > 0);
+    userCount.textContent = `${selectedUserIds.size} selected`;
+  }
+
+  if (archiveBulk && archiveCount) {
+    setBulkActionsVisible(archiveBulk, selectedArchivedUserIds.size > 0);
+    archiveCount.textContent = `${selectedArchivedUserIds.size} selected`;
+  }
+}
+
+function updateSelectAllState(checkboxId, selectedSet, visibleRows) {
+  const checkbox = document.getElementById(checkboxId);
+  if (!checkbox) return;
+
+  const visibleIds = visibleRows.map((u) => u.id);
+  const selectedVisibleCount = visibleIds.filter((id) => selectedSet.has(id)).length;
+  const hasVisible = visibleIds.length > 0;
+
+  checkbox.checked = hasVisible && selectedVisibleCount === visibleIds.length;
+  checkbox.indeterminate = hasVisible && selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+}
+
+function toggleUserSelection(userId, checked) {
+  if (checked) selectedUserIds.add(userId);
+  else selectedUserIds.delete(userId);
+
+  updateSelectAllState('userSelectAllCheckbox', selectedUserIds, getVisibleUserRows());
+  updateBulkActionUI();
+}
+
+function toggleArchivedSelection(userId, checked) {
+  if (checked) selectedArchivedUserIds.add(userId);
+  else selectedArchivedUserIds.delete(userId);
+
+  updateSelectAllState('archiveSelectAllCheckbox', selectedArchivedUserIds, getVisibleArchivedRows());
+  updateBulkActionUI();
+}
+
+function toggleSelectAllVisibleUsers(checked) {
+  const visibleRows = getVisibleUserRows();
+  visibleRows.forEach((u) => {
+    if (checked) selectedUserIds.add(u.id);
+    else selectedUserIds.delete(u.id);
+  });
+  renderUsers();
+  updateBulkActionUI();
+}
+
+function toggleSelectAllVisibleArchived(checked) {
+  const visibleRows = getVisibleArchivedRows();
+  visibleRows.forEach((u) => {
+    if (checked) selectedArchivedUserIds.add(u.id);
+    else selectedArchivedUserIds.delete(u.id);
+  });
+  renderArchive();
+  updateBulkActionUI();
+}
+
+function clearUserSelection() {
+  selectedUserIds.clear();
+  renderUsers();
+  updateBulkActionUI();
+}
+
+function clearArchivedSelection() {
+  selectedArchivedUserIds.clear();
+  renderArchive();
+  updateBulkActionUI();
+}
+
+function bulkArchiveSelectedUsers() {
+  if (selectedUserIds.size === 0) return;
+
+  const selectedUsers = usersData.filter((u) => selectedUserIds.has(u.id));
+  if (selectedUsers.length === 0) {
+    selectedUserIds.clear();
+    updateBulkActionUI();
+    renderUsers();
+    return;
+  }
+
+  const bulkArchiveCount = document.getElementById('bulkArchiveCount');
+  if (bulkArchiveCount) bulkArchiveCount.textContent = `${selectedUsers.length} selected user(s)`;
+
+  openModal('bulkArchiveModal');
+}
+
+function confirmBulkArchive() {
+  if (selectedUserIds.size === 0) {
+    closeModal('bulkArchiveModal');
+    return;
+  }
+
+  const selectedIdList = Array.from(selectedUserIds);
+  const selectedUsers = usersData.filter((u) => selectedUserIds.has(u.id));
+
+  if (selectedUsers.length === 0) {
+    selectedUserIds.clear();
+    updateBulkActionUI();
+    renderUsers();
+    return;
+  }
+
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  selectedUsers.forEach((u) => {
+    archivedUsers.unshift({ ...u, archivedAt: now });
+  });
+
+  usersData = usersData.filter((u) => !selectedUserIds.has(u.id));
+  selectedUserIds.clear();
+  selectedIdList.forEach((id) => selectedArchivedUserIds.delete(id));
+  closeModal('bulkArchiveModal');
+
+  renderUsers();
+  renderArchive();
+  updateBulkActionUI();
+  showToast(`${selectedUsers.length} user(s) archived successfully.`, 'info');
+}
+
+function bulkUnarchiveSelectedUsers() {
+  if (selectedArchivedUserIds.size === 0) return;
+
+  const selectedUsers = archivedUsers.filter((u) => selectedArchivedUserIds.has(u.id));
+  if (selectedUsers.length === 0) {
+    selectedArchivedUserIds.clear();
+    updateBulkActionUI();
+    renderArchive();
+    return;
+  }
+
+  const bulkUnarchiveCount = document.getElementById('bulkUnarchiveCount');
+  if (bulkUnarchiveCount) bulkUnarchiveCount.textContent = `${selectedUsers.length} selected user(s)`;
+
+  openModal('bulkUnarchiveModal');
+}
+
+function confirmBulkUnarchive() {
+  if (selectedArchivedUserIds.size === 0) {
+    closeModal('bulkUnarchiveModal');
+    return;
+  }
+
+  const selectedUsers = archivedUsers.filter((u) => selectedArchivedUserIds.has(u.id));
+  if (selectedUsers.length === 0) {
+    selectedArchivedUserIds.clear();
+    updateBulkActionUI();
+    renderArchive();
+    closeModal('bulkUnarchiveModal');
+    return;
+  }
+
+  selectedUsers.forEach((u) => {
+    usersData.unshift(u);
+  });
+
+  archivedUsers = archivedUsers.filter((u) => !selectedArchivedUserIds.has(u.id));
+  selectedArchivedUserIds.clear();
+  closeModal('bulkUnarchiveModal');
+
+  renderArchive();
+  renderUsers();
+  updateBulkActionUI();
+  showToast(`${selectedUsers.length} user(s) unarchived successfully.`, 'success');
 }
 
 // ===== RENDER USER TABLE =====
@@ -231,11 +470,19 @@ function renderUsers() {
   pageData.forEach(u => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>
+        <input
+          type="checkbox"
+          class="table-select-checkbox"
+          onchange="toggleUserSelection(${u.id}, this.checked)"
+          ${selectedUserIds.has(u.id) ? 'checked' : ''}
+        />
+      </td>
       <td>${u.empId}</td>
       <td>${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}</td>
       <td>${u.email}</td>
       <td>${u.username}</td>
-      <td><span class="badge badge-${u.role.toLowerCase()}">${u.role}</span></td>
+      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${u.role}</span></td>
       <td><span class="badge badge-status-${u.status.toLowerCase()}">${u.status}</span></td>
       <td>
         <div class="action-btns">
@@ -259,9 +506,12 @@ function renderUsers() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="7"></td>';
+    tr.innerHTML = '<td colspan="8"></td>';
     tbody.appendChild(tr);
   }
+
+  updateSelectAllState('userSelectAllCheckbox', selectedUserIds, pageData);
+  updateBulkActionUI();
 
   renderPagination('userPagination', totalPages, currentPage, (p) => { currentPage = p; renderUsers(); });
 }
@@ -301,11 +551,24 @@ function renderArchive() {
   pageData.forEach(u => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>
+        <input
+          type="checkbox"
+          class="table-select-checkbox"
+          onchange="toggleArchivedSelection(${u.id}, this.checked)"
+          ${selectedArchivedUserIds.has(u.id) ? 'checked' : ''}
+        />
+      </td>
       <td>${u.empId}</td>
       <td>${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}</td>
       <td>${u.email}</td>
       <td>${u.username}</td>
-      <td><span class="badge badge-${u.role.toLowerCase()}">${u.role}</span></td>
+      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${u.role}</span></td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-unarchive" onclick="openUnarchiveModal(${u.id})" title="Unarchive">Unarchive</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -315,11 +578,43 @@ function renderArchive() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="5"></td>';
+    tr.innerHTML = '<td colspan="7"></td>';
     tbody.appendChild(tr);
   }
 
+  updateSelectAllState('archiveSelectAllCheckbox', selectedArchivedUserIds, pageData);
+  updateBulkActionUI();
+
   renderPagination('archivePagination', totalPages, archivePage, (p) => { archivePage = p; renderArchive(); });
+}
+
+function openUnarchiveModal(userId) {
+  selectedArchivedUser = archivedUsers.find(u => u.id === userId);
+  if (!selectedArchivedUser) return;
+
+  document.getElementById('unarchiveUserName').textContent = `${selectedArchivedUser.firstName} ${selectedArchivedUser.lastName}`;
+  openModal('unarchiveModal');
+}
+
+function confirmUnarchive() {
+  if (!selectedArchivedUser) return;
+
+  closeModal('unarchiveModal');
+  unarchiveUser(selectedArchivedUser.id);
+  selectedArchivedUser = null;
+}
+
+function unarchiveUser(userId) {
+  const idx = archivedUsers.findIndex(u => u.id === userId);
+  if (idx === -1) return;
+
+  const [user] = archivedUsers.splice(idx, 1);
+  usersData.unshift(user);
+  selectedArchivedUserIds.delete(userId);
+
+  renderArchive();
+  renderUsers();
+  showToast('User unarchived successfully.', 'success');
 }
 
 // ===== RENDER AUDIT TABLE =====
@@ -421,6 +716,10 @@ function closeModal(id) {
 
 function openAddModal() {
   document.getElementById('addUserForm').reset();
+  addEmailDomainToastShown = false;
+  Object.keys(duplicateToastShown).forEach((key) => { duplicateToastShown[key] = false; });
+  clearFormValidation('add');
+  updateFormButtons();
   openModal('addUserModal');
 }
 
@@ -438,6 +737,11 @@ function openEditModal(userId) {
   document.getElementById('editOffice').value = String(user.officeId ?? '');
   document.getElementById('editRole').value = String(user.roleId ?? '');
   document.getElementById('editStatus').value = user.status || 'Active';
+  duplicateToastShown.editEmpId = false;
+  duplicateToastShown.editUsername = false;
+  duplicateToastShown.editEmail = false;
+  clearFormValidation('edit');
+  updateFormButtons();
   openModal('editUserModal');
 }
 
@@ -469,72 +773,106 @@ function openArchiveModal(userId) {
 
 async function confirmArchive() {
   if (!selectedUser) return;
-  try {
-    await dataSource.users.archive(selectedUser.id);
-    closeModal('archiveModal');
-    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
-    showToast('User archived successfully.', 'info');
-    selectedUser = null;
-  } catch (e) {
-    showToast(e.message || 'Failed to archive user.', 'error');
-  }
+  // Move from active to archived
+  archivedUsers.unshift({ ...selectedUser, archivedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') });
+  usersData = usersData.filter(u => u.id !== selectedUser.id);
+  selectedUserIds.delete(selectedUser.id);
+  closeModal('archiveModal');
+  renderUsers();
+  renderArchive();
+  updateBulkActionUI();
+  showToast('User archived successfully.', 'info');
+  selectedUser = null;
 }
 
-async function saveAddUser() {
-  const fn = document.getElementById('addFirstName').value.trim();
-  const ln = document.getElementById('addLastName').value.trim();
-  const email = document.getElementById('addEmail').value.trim();
-  const username = document.getElementById('addUsername').value.trim();
-  const employeeId = document.getElementById('addEmpId').value.trim();
-  const password = document.getElementById('addPassword').value.trim();
-  const roleId = Number(document.getElementById('addRole').value);
-  const officeId = Number(document.getElementById('addOffice').value);
+function formatPersonName(value, trimEdges = true) {
+  const formatted = String(value ?? '')
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (match, separator, letter) => `${separator}${letter.toUpperCase()}`);
 
-  if (!fn || !ln || !email || !username || !employeeId || !password || !roleId || !officeId) {
-    showToast('Please complete all required fields.', 'error');
+  return trimEdges ? formatted.trim() : formatted;
+}
+
+function normalizeNameInput(fieldId, trimEdges = false) {
+  const input = document.getElementById(fieldId);
+  if (!input) return;
+
+  const formatted = formatPersonName(input.value, trimEdges);
+  if (input.value !== formatted) input.value = formatted;
+}
+
+function saveAddUser() {
+  if (!validateAddForm(true)) {
+    showToast('Please complete all required fields correctly.', 'error');
+    return;
+  }
+
+  const fn = formatPersonName(document.getElementById('addFirstName').value);
+  const mn = formatPersonName(document.getElementById('addMiddleName').value);
+  const ln = formatPersonName(document.getElementById('addLastName').value);
+
+  document.getElementById('addFirstName').value = fn;
+  document.getElementById('addMiddleName').value = mn;
+  document.getElementById('addLastName').value = ln;
+
+  const newUser = {
+    id: Date.now(),
+    empId: document.getElementById('addEmpId').value.trim() || 'N/A',
+    firstName: fn,
+    middleName: mn,
+    lastName: ln,
+    email: document.getElementById('addEmail').value.trim(),
+    username: document.getElementById('addUsername').value.trim(),
+    role: document.getElementById('addRole').value || 'User',
+    status: 'Active',
+    designation: document.getElementById('addDesignation').value.trim(),
+    office: document.getElementById('addOffice').value || '',
+    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+  };
+
+  usersData.unshift(newUser);
+  closeModal('addUserModal');
+  currentPage = 1;
+  renderUsers();
+  showToast('User account created successfully!', 'success');
+}
+
+async function saveEditUser() {
+  const editSaveBtn = document.getElementById('editUserSaveBtn');
+  if (editSaveBtn?.disabled) return;
+
+  if (!validateEditForm(true)) {
+    showToast('Please complete all required fields correctly.', 'error');
     return;
   }
 
   try {
-    await dataSource.users.create({
-      employee_id: employeeId,
-      first_name: fn,
-      middle_name: document.getElementById('addMiddleName').value.trim() || null,
-      last_name: ln,
-      username,
-      email,
-      password,
-      office_id: officeId,
-      role_id: roleId,
-      is_active: true,
-    });
+    if (!selectedUser) return;
+    const idx = usersData.findIndex(u => u.id === selectedUser.id);
+    if (idx === -1) return;
 
-    closeModal('addUserModal');
-    currentPage = 1;
-    await loadUsersFromApi();
-    showToast('User account created successfully!', 'success');
-  } catch (e) {
-    showToast(e.message || 'Failed to create user.', 'error');
-  }
-}
+    const editFirstName = formatPersonName(document.getElementById('editFirstName').value);
+    const editMiddleName = formatPersonName(document.getElementById('editMiddleName').value);
+    const editLastName = formatPersonName(document.getElementById('editLastName').value);
 
-async function saveEditUser() {
-  if (!selectedUser) return;
-  const roleId = Number(document.getElementById('editRole').value);
-  const officeId = Number(document.getElementById('editOffice').value);
+    document.getElementById('editFirstName').value = editFirstName;
+    document.getElementById('editMiddleName').value = editMiddleName;
+    document.getElementById('editLastName').value = editLastName;
 
-  try {
-    await dataSource.users.update(selectedUser.id, {
-      employee_id: document.getElementById('editEmpId').value.trim() || selectedUser.empId,
-      first_name: document.getElementById('editFirstName').value.trim() || selectedUser.firstName,
-      middle_name: document.getElementById('editMiddleName').value.trim() || null,
-      last_name: document.getElementById('editLastName').value.trim() || selectedUser.lastName,
-      email: document.getElementById('editEmail').value.trim() || selectedUser.email,
-      username: document.getElementById('editUsername').value.trim() || selectedUser.username,
-      office_id: officeId || selectedUser.officeId,
-      role_id: roleId || selectedUser.roleId,
-      is_active: (document.getElementById('editStatus').value || 'Active') === 'Active',
-    });
+    usersData[idx] = {
+      ...usersData[idx],
+      firstName: editFirstName,
+      middleName: editMiddleName,
+      lastName: editLastName,
+      email: document.getElementById('editEmail').value.trim(),
+      username: document.getElementById('editUsername').value.trim(),
+      designation: document.getElementById('editDesignation').value.trim(),
+      office: document.getElementById('editOffice').value,
+      role: document.getElementById('editRole').value,
+      status: document.getElementById('editStatus').value,
+      updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    };
 
     closeModal('editUserModal');
     await loadUsersFromApi();
@@ -551,6 +889,397 @@ function generatePassword() {
   let pwd = '';
   for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('addPassword').value = pwd;
+  validateAddForm(true);
+  updateFormButtons();
+}
+
+function getFieldErrorElement(fieldId) {
+  let err = document.querySelector(`.field-error[data-for="${fieldId}"]`);
+  if (err) return err;
+
+  const input = document.getElementById(fieldId);
+  if (!input) return null;
+
+  const group = input.closest('.form-group');
+  if (!group) return null;
+
+  err = document.createElement('div');
+  err.className = 'field-error';
+  err.setAttribute('data-for', fieldId);
+  group.appendChild(err);
+  return err;
+}
+
+function setFieldError(fieldId, message) {
+  const input = document.getElementById(fieldId);
+  const err = getFieldErrorElement(fieldId);
+  if (!input || !err) return;
+
+  if (message) {
+    input.classList.add('field-invalid');
+    err.innerHTML = `<span class="field-error-icon" aria-hidden="true">!</span><span class="field-error-text">${message}</span>`;
+  } else {
+    input.classList.remove('field-invalid');
+    err.innerHTML = '';
+  }
+}
+
+function validateRequired(fieldId, label) {
+  const input = document.getElementById(fieldId);
+  if (!input) return true;
+  if (!input.value.trim()) {
+    setFieldError(fieldId, `${label} is required. Please provide a valid value.`);
+    return false;
+  }
+  setFieldError(fieldId, '');
+  return true;
+}
+
+function normalizeValue(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function hasDuplicate(field, value, excludeUserId = null) {
+  const normalized = normalizeValue(value);
+  if (!normalized) return false;
+
+  return usersData.some((u) => {
+    if (excludeUserId !== null && u.id === excludeUserId) return false;
+    return normalizeValue(u[field]) === normalized;
+  });
+}
+
+function validateUniqueField(fieldId, userField, label, excludeUserId = null) {
+  const input = document.getElementById(fieldId);
+  if (!input) return true;
+
+  const value = input.value.trim();
+  if (!value) return true;
+
+  const duplicate = hasDuplicate(userField, value, excludeUserId);
+  if (duplicate) {
+    setFieldError(fieldId, `${label} already exists. Please use a different ${label}.`);
+    return false;
+  }
+
+  return true;
+}
+
+function validateEmailField(fieldId) {
+  const input = document.getElementById(fieldId);
+  if (!input) return true;
+
+  const value = input.value.trim();
+  if (!value) {
+    setFieldError(fieldId, 'Email is required. Please enter your official email address.');
+    return false;
+  }
+
+  const validFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if (!validFormat) {
+    setFieldError(fieldId, 'Invalid email format. Use a valid address like name@lra.gov.ph.');
+    return false;
+  }
+
+  const lower = value.toLowerCase();
+  if (!lower.endsWith(`@${REQUIRED_EMAIL_DOMAIN}`)) {
+    setFieldError(fieldId, `Email should use @${REQUIRED_EMAIL_DOMAIN} only.`);
+    return false;
+  }
+
+  if (fieldId === 'addEmail') addEmailDomainToastShown = false;
+  setFieldError(fieldId, '');
+  return true;
+}
+
+function notifyWrongAddEmailDomain() {
+  const input = document.getElementById('addEmail');
+  if (!input) return;
+
+  const value = input.value.trim().toLowerCase();
+  const atIndex = value.indexOf('@');
+
+  // Don't show domain toast while the user is still typing the required domain.
+  let wrongDomain = false;
+  if (atIndex > 0 && atIndex < value.length - 1) {
+    const localPart = value.slice(0, atIndex);
+    const domainPart = value.slice(atIndex + 1);
+    const required = REQUIRED_EMAIL_DOMAIN.toLowerCase();
+    const isExactRequired = domainPart === required;
+    const isTypingRequiredDomain = required.startsWith(domainPart);
+    const isCompleteDomain = /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domainPart);
+
+    wrongDomain = Boolean(localPart) && isCompleteDomain && !isExactRequired && !isTypingRequiredDomain;
+  }
+
+  if (wrongDomain && !addEmailDomainToastShown) {
+    showToast(`Invalid email domain. Email should use @${REQUIRED_EMAIL_DOMAIN} only.`, 'error');
+    addEmailDomainToastShown = true;
+  }
+
+  if (!wrongDomain) {
+    addEmailDomainToastShown = false;
+  }
+}
+
+function notifyDuplicateField(fieldId, userField, label, excludeUserId = null) {
+  const input = document.getElementById(fieldId);
+  if (!input) return;
+
+  const value = input.value.trim();
+  const duplicate = value && hasDuplicate(userField, value, excludeUserId);
+
+  if (duplicate && !duplicateToastShown[fieldId]) {
+    showToast(`Duplicate ${label}. Please use a different ${label}.`, 'error');
+    duplicateToastShown[fieldId] = true;
+  }
+
+  if (!duplicate) {
+    duplicateToastShown[fieldId] = false;
+  }
+}
+
+function validateAddForm(showErrors = true) {
+  const checks = [
+    ['addFirstName', 'First Name'],
+    ['addLastName', 'Last Name'],
+    ['addEmpId', 'Employee ID'],
+    ['addUsername', 'Username'],
+    ['addPassword', 'Password'],
+    ['addDesignation', 'Designation / Position'],
+    ['addOffice', 'Office / Department / Division'],
+    ['addRole', 'Account Role'],
+  ];
+
+  let valid = true;
+  checks.forEach(([fieldId, label]) => {
+    const ok = validateRequired(fieldId, label);
+    if (!ok && !showErrors) setFieldError(fieldId, '');
+    valid = ok && valid;
+  });
+
+  const emailOk = validateEmailField('addEmail');
+  if (!emailOk && !showErrors) setFieldError('addEmail', '');
+  valid = emailOk && valid;
+
+  const uniqueEmpIdOk = validateUniqueField('addEmpId', 'empId', 'Employee ID');
+  if (!uniqueEmpIdOk && !showErrors) setFieldError('addEmpId', '');
+  valid = uniqueEmpIdOk && valid;
+
+  const uniqueUsernameOk = validateUniqueField('addUsername', 'username', 'Username');
+  if (!uniqueUsernameOk && !showErrors) setFieldError('addUsername', '');
+  valid = uniqueUsernameOk && valid;
+
+  const uniqueEmailOk = validateUniqueField('addEmail', 'email', 'Email');
+  if (!uniqueEmailOk && !showErrors) setFieldError('addEmail', '');
+  valid = uniqueEmailOk && valid;
+
+  return valid;
+}
+
+function validateAddField(fieldId, showErrors = true) {
+  const labels = {
+    addFirstName: 'First Name',
+    addLastName: 'Last Name',
+    addEmpId: 'Employee ID',
+    addUsername: 'Username',
+    addPassword: 'Password',
+    addDesignation: 'Designation / Position',
+    addOffice: 'Office / Department / Division',
+    addRole: 'Account Role',
+  };
+
+  if (fieldId === 'addEmail') {
+    const ok = validateEmailField('addEmail');
+    if (!ok && !showErrors) setFieldError('addEmail', '');
+    if (!ok) return ok;
+
+    const uniqueEmailOk = validateUniqueField('addEmail', 'email', 'Email');
+    if (!uniqueEmailOk && !showErrors) setFieldError('addEmail', '');
+    return uniqueEmailOk;
+  }
+
+  if (fieldId === 'addEmpId') {
+    const requiredOk = validateRequired('addEmpId', 'Employee ID');
+    if (!requiredOk) return false;
+    const uniqueEmpIdOk = validateUniqueField('addEmpId', 'empId', 'Employee ID');
+    if (!uniqueEmpIdOk && !showErrors) setFieldError('addEmpId', '');
+    return uniqueEmpIdOk;
+  }
+
+  if (fieldId === 'addUsername') {
+    const requiredOk = validateRequired('addUsername', 'Username');
+    if (!requiredOk) return false;
+    const uniqueUsernameOk = validateUniqueField('addUsername', 'username', 'Username');
+    if (!uniqueUsernameOk && !showErrors) setFieldError('addUsername', '');
+    return uniqueUsernameOk;
+  }
+
+  {
+    const label = labels[fieldId];
+    if (!label) return true;
+    const ok = validateRequired(fieldId, label);
+    if (!ok && !showErrors) setFieldError(fieldId, '');
+    return ok;
+  }
+}
+
+function validateEditForm(showErrors = true) {
+  const checks = [
+    ['editFirstName', 'First Name'],
+    ['editLastName', 'Last Name'],
+    ['editUsername', 'Username'],
+    ['editDesignation', 'Designation / Position'],
+    ['editOffice', 'Office / Department / Division'],
+    ['editRole', 'Account Role'],
+    ['editStatus', 'Status'],
+  ];
+
+  let valid = true;
+  checks.forEach(([fieldId, label]) => {
+    const ok = validateRequired(fieldId, label);
+    if (!ok && !showErrors) setFieldError(fieldId, '');
+    valid = ok && valid;
+  });
+
+  const emailOk = validateEmailField('editEmail');
+  if (!emailOk && !showErrors) setFieldError('editEmail', '');
+  valid = emailOk && valid;
+
+  const excludeId = selectedUser?.id ?? null;
+  const uniqueEmpIdOk = validateUniqueField('editEmpId', 'empId', 'Employee ID', excludeId);
+  if (!uniqueEmpIdOk && !showErrors) setFieldError('editEmpId', '');
+  valid = uniqueEmpIdOk && valid;
+
+  const uniqueUsernameOk = validateUniqueField('editUsername', 'username', 'Username', excludeId);
+  if (!uniqueUsernameOk && !showErrors) setFieldError('editUsername', '');
+  valid = uniqueUsernameOk && valid;
+
+  const uniqueEmailOk = validateUniqueField('editEmail', 'email', 'Email', excludeId);
+  if (!uniqueEmailOk && !showErrors) setFieldError('editEmail', '');
+  valid = uniqueEmailOk && valid;
+
+  return valid;
+}
+
+function validateEditField(fieldId, showErrors = true) {
+  const labels = {
+    editFirstName: 'First Name',
+    editLastName: 'Last Name',
+    editUsername: 'Username',
+    editDesignation: 'Designation / Position',
+    editOffice: 'Office / Department / Division',
+    editRole: 'Account Role',
+    editStatus: 'Status',
+  };
+
+  if (fieldId === 'editEmail') {
+    const ok = validateEmailField('editEmail');
+    if (!ok && !showErrors) setFieldError('editEmail', '');
+    if (!ok) return ok;
+
+    const uniqueEmailOk = validateUniqueField('editEmail', 'email', 'Email', selectedUser?.id ?? null);
+    if (!uniqueEmailOk && !showErrors) setFieldError('editEmail', '');
+    return uniqueEmailOk;
+  }
+
+  if (fieldId === 'editEmpId') {
+    const uniqueEmpIdOk = validateUniqueField('editEmpId', 'empId', 'Employee ID', selectedUser?.id ?? null);
+    if (!uniqueEmpIdOk && !showErrors) setFieldError('editEmpId', '');
+    return uniqueEmpIdOk;
+  }
+
+  if (fieldId === 'editUsername') {
+    const requiredOk = validateRequired('editUsername', 'Username');
+    if (!requiredOk) return false;
+    const uniqueUsernameOk = validateUniqueField('editUsername', 'username', 'Username', selectedUser?.id ?? null);
+    if (!uniqueUsernameOk && !showErrors) setFieldError('editUsername', '');
+    return uniqueUsernameOk;
+  }
+
+  const label = labels[fieldId];
+  if (!label) return true;
+  const ok = validateRequired(fieldId, label);
+  if (!ok && !showErrors) setFieldError(fieldId, '');
+  return ok;
+}
+
+function clearFormValidation(prefix) {
+  document.querySelectorAll(`.field-error[data-for^="${prefix}"]`).forEach(el => {
+    el.textContent = '';
+  });
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach(el => {
+    el.classList.remove('field-invalid');
+  });
+}
+
+function updateFormButtons() {
+  const addBtn = document.getElementById('addUserSaveBtn');
+  const editBtn = document.getElementById('editUserSaveBtn');
+
+  if (addBtn) addBtn.disabled = !validateAddForm(false);
+  if (editBtn) editBtn.disabled = !validateEditForm(false);
+}
+
+function bindValidationEvents() {
+  const nameFields = [
+    'addFirstName', 'addMiddleName', 'addLastName',
+    'editFirstName', 'editMiddleName', 'editLastName',
+  ];
+
+  nameFields.forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+
+    el.addEventListener('input', () => {
+      normalizeNameInput(fieldId, false);
+    });
+
+    el.addEventListener('blur', () => {
+      normalizeNameInput(fieldId, true);
+    });
+  });
+
+  const addFields = [
+    'addFirstName', 'addLastName', 'addEmail', 'addEmpId',
+    'addUsername', 'addPassword', 'addDesignation', 'addOffice', 'addRole',
+  ];
+  const editFields = [
+    'editFirstName', 'editLastName', 'editEmail', 'editUsername',
+    'editDesignation', 'editOffice', 'editRole', 'editStatus',
+  ];
+
+  [...addFields, ...editFields].forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+
+    const eventType = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(eventType, () => {
+      if (fieldId.startsWith('add')) validateAddField(fieldId, true);
+      else validateEditField(fieldId, true);
+      if (fieldId === 'addEmail') notifyWrongAddEmailDomain();
+      if (fieldId === 'addEmpId') notifyDuplicateField('addEmpId', 'empId', 'Employee ID');
+      if (fieldId === 'addUsername') notifyDuplicateField('addUsername', 'username', 'Username');
+      if (fieldId === 'addEmail') notifyDuplicateField('addEmail', 'email', 'Email');
+      if (fieldId === 'editEmpId') notifyDuplicateField('editEmpId', 'empId', 'Employee ID', selectedUser?.id ?? null);
+      if (fieldId === 'editUsername') notifyDuplicateField('editUsername', 'username', 'Username', selectedUser?.id ?? null);
+      if (fieldId === 'editEmail') notifyDuplicateField('editEmail', 'email', 'Email', selectedUser?.id ?? null);
+      updateFormButtons();
+    });
+
+    el.addEventListener('blur', () => {
+      if (fieldId.startsWith('add')) validateAddField(fieldId, true);
+      else validateEditField(fieldId, true);
+      if (fieldId === 'addEmail') notifyWrongAddEmailDomain();
+      if (fieldId === 'addEmpId') notifyDuplicateField('addEmpId', 'empId', 'Employee ID');
+      if (fieldId === 'addUsername') notifyDuplicateField('addUsername', 'username', 'Username');
+      if (fieldId === 'addEmail') notifyDuplicateField('addEmail', 'email', 'Email');
+      if (fieldId === 'editEmpId') notifyDuplicateField('editEmpId', 'empId', 'Employee ID', selectedUser?.id ?? null);
+      if (fieldId === 'editUsername') notifyDuplicateField('editUsername', 'username', 'Username', selectedUser?.id ?? null);
+      if (fieldId === 'editEmail') notifyDuplicateField('editEmail', 'email', 'Email', selectedUser?.id ?? null);
+      updateFormButtons();
+    });
+  });
 }
 
 // ===== SORT & FILTER DROPDOWNS =====
@@ -603,6 +1332,27 @@ function setArchiveFilterRole(role, label) {
   renderArchive();
 }
 
+function getFormattedDateTime() {
+  return new Date().toLocaleString('en-PH', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
+function renderLastVisited() {
+  const stamp = getFormattedDateTime();
+  const adminEl = document.getElementById('adminLastVisited');
+  const userEl = document.getElementById('userLastVisited');
+
+  if (adminEl) adminEl.textContent = stamp;
+  if (userEl) userEl.textContent = stamp;
+}
+
 // ===== TOAST =====
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -625,33 +1375,32 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ===== CLOSE MODAL ON OVERLAY CLICK =====
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
-
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
+  bindValidationEvents();
+  updateFormButtons();
+  renderLastVisited();
+
   if (document.getElementById('userTableBody')) {
     try {
       await loadReferenceData();
-      await loadUsersFromApi();
+      await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
     } catch (e) {
-      showToast(e.message || 'Failed to load users.', 'error');
+      showToast(e.message || 'Failed to load users from server.', 'error');
       renderUsers();
     }
   }
-
   if (document.getElementById('auditTableBody')) {
     try {
       await loadAuditFromApi();
     } catch (e) {
-      showToast(e.message || 'Failed to load activity logs.', 'error');
+      showToast(e.message || 'Failed to load activity logs from server.', 'error');
       renderAudit();
     }
   }
+
+  const activePage = document.querySelector('.page.active')?.id;
+  updatePageTitle(activePage || 'profilePage');
 
   // Sidebar toggle
   const sidebar     = document.getElementById('sidebar');
@@ -683,6 +1432,16 @@ Object.assign(window, {
   renderUsers,
   renderArchive,
   renderAudit,
+  toggleUserSelection,
+  toggleArchivedSelection,
+  toggleSelectAllVisibleUsers,
+  toggleSelectAllVisibleArchived,
+  clearUserSelection,
+  clearArchivedSelection,
+  bulkArchiveSelectedUsers,
+  confirmBulkArchive,
+  bulkUnarchiveSelectedUsers,
+  confirmBulkUnarchive,
   toggleDropdown,
   setSortField,
   setFilterRole,
@@ -694,6 +1453,9 @@ Object.assign(window, {
   openInfoModal,
   openArchiveModal,
   confirmArchive,
+  openUnarchiveModal,
+  confirmUnarchive,
+  unarchiveUser,
   saveAddUser,
   saveEditUser,
   generatePassword,

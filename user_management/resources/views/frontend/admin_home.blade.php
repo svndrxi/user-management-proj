@@ -73,7 +73,10 @@
                 <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clip-rule="evenodd"/>
               </svg>
             </div>
-            <h2 class="profile-name">DELA CRUZ, JUAN C.</h2>
+            <div class="profile-identity">
+              <h2 class="profile-name">DELA CRUZ, JUAN C.</h2>
+              <p class="profile-role">Admin</p>
+            </div>
           </div>
           <div class="profile-divider"></div>
           <div class="profile-body">
@@ -93,12 +96,12 @@
                   <span class="info-value">j.delacruz@lra.gov.ph</span>
                 </div>
                 <div class="info-field">
-                  <label>Account Role:</label>
-                  <span class="info-value">Admin</span>
-                </div>
-                <div class="info-field">
                   <label>Employee ID:</label>
                   <span class="info-value">1234-5678</span>
+                </div>
+                <div class="info-field">
+                  <label>Last Visited:</label>
+                  <span class="info-value" id="adminLastVisited">-</span>
                 </div>
               </div>
             </div>
@@ -147,7 +150,12 @@
                 <li onclick="setFilterRole('user','User')">User</li>
               </ul>
             </div>
-            <div class="toolbar-right" style="display:flex;gap:10px;">
+            <div class="toolbar-right" style="display:flex;gap:10px;align-items:center;">
+              <div id="userBulkActions" class="bulk-actions" style="display:none;">
+                <span class="bulk-count" id="userSelectedCount">0 selected</span>
+                <button class="btn-bulk-clear" onclick="clearUserSelection()">Clear Selection</button>
+                <button class="btn-bulk-archive" onclick="bulkArchiveSelectedUsers()">Archive Selected</button>
+              </div>
                <!-- New User button -->
               <button class="btn-new-user" onclick="openAddModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -168,6 +176,9 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th style="width:44px;">
+                    <input type="checkbox" id="userSelectAllCheckbox" onchange="toggleSelectAllVisibleUsers(this.checked)" />
+                  </th>
                   <th>Employee ID</th>
                   <th>Name</th>
                   <th>Email</th>
@@ -221,7 +232,12 @@
                 <li onclick="setArchiveFilterRole('user','User')">User</li>
               </ul>
             </div>
-            <div class="toolbar-right">
+            <div class="toolbar-right" style="display:flex;gap:10px;align-items:center;">
+              <div id="archiveBulkActions" class="bulk-actions" style="display:none;">
+                <span class="bulk-count" id="archiveSelectedCount">0 selected</span>
+                <button class="btn-bulk-clear" onclick="clearArchivedSelection()">Clear Selection</button>
+                <button class="btn-bulk-unarchive" onclick="bulkUnarchiveSelectedUsers()">Unarchive Selected</button>
+              </div>
               <button class="btn-back" onclick="closeArchiveList()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12"/>
@@ -234,11 +250,15 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th style="width:44px;">
+                    <input type="checkbox" id="archiveSelectAllCheckbox" onchange="toggleSelectAllVisibleArchived(this.checked)" />
+                  </th>
                   <th>Employee ID</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Username</th>
                   <th>Role</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="archiveTableBody"></tbody>
@@ -344,7 +364,21 @@
           </div>
           <div class="form-group full-width">
             <label>Designation / Position</label>
-            <input type="text" id="addDesignation" placeholder="Designation/Position" />
+            <select id="addDesignation">
+              <option value="">Select Designation/Position</option>
+              <option value="IT Officer III">IT Officer III</option>
+              <option value="IT Officer II">IT Officer II</option>
+              <option value="Administrative Officer">Administrative Officer</option>
+              <option value="Records Officer">Records Officer</option>
+              <option value="Clerk III">Clerk III</option>
+              <option value="Clerk II">Clerk II</option>
+              <option value="Division Chief">Division Chief</option>
+              <option value="Stenographer">Stenographer</option>
+              <option value="Programmer III">Programmer III</option>
+              <option value="Accountant">Accountant</option>
+              <option value="Paralegal">Paralegal</option>
+              <option value="Driver">Driver</option>
+            </select>
           </div>
           <div class="form-group full-width">
             <label>Office / Department / Division</label>
@@ -370,7 +404,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('addUserModal')">Cancel</button>
-      <button class="btn-create" onclick="saveAddUser()">Create Account</button>
+      <button id="addUserSaveBtn" class="btn-create" onclick="saveAddUser()">Create Account</button>
     </div>
   </div>
 </div>
@@ -407,7 +441,21 @@
         </div>
         <div class="form-group full-width">
           <label>Designation / Position</label>
-          <input type="text" id="editDesignation" placeholder="Designation/Position" />
+          <select id="editDesignation">
+            <option value="">Select Designation/Position</option>
+            <option value="IT Officer III">IT Officer III</option>
+            <option value="IT Officer II">IT Officer II</option>
+            <option value="Administrative Officer">Administrative Officer</option>
+            <option value="Records Officer">Records Officer</option>
+            <option value="Clerk III">Clerk III</option>
+            <option value="Clerk II">Clerk II</option>
+            <option value="Division Chief">Division Chief</option>
+            <option value="Stenographer">Stenographer</option>
+            <option value="Programmer III">Programmer III</option>
+            <option value="Accountant">Accountant</option>
+            <option value="Paralegal">Paralegal</option>
+            <option value="Driver">Driver</option>
+          </select>
         </div>
         <div class="form-group full-width">
           <label>Office / Department / Division</label>
@@ -438,7 +486,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('editUserModal')">Cancel</button>
-      <button class="btn-save" onclick="saveEditUser()">Save</button>
+      <button id="editUserSaveBtn" class="btn-save" onclick="saveEditUser()">Save</button>
     </div>
   </div>
 </div>
@@ -523,6 +571,65 @@
     <div class="modal-footer" style="justify-content:center;">
       <button class="btn-cancel" onclick="closeModal('archiveModal')">Cancel</button>
       <button class="btn-confirm-archive" onclick="confirmArchive()">Archive</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNARCHIVE CONFIRM MODAL -->
+<div class="modal-overlay" id="unarchiveModal">
+  <div class="modal modal-delete" style="max-width:400px;">
+    <div class="modal-body">
+      <div class="unarchive-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h5l2 2h11v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 17V11m0 0l-3 3m3-3l3 3"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Unarchive User Account</p>
+      <p class="delete-sub">Are you sure you want to unarchive <strong id="unarchiveUserName"></strong>? The account will be moved back to the active user list.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('unarchiveModal')">Cancel</button>
+      <button class="btn-confirm-unarchive" onclick="confirmUnarchive()">Unarchive</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK ARCHIVE CONFIRM MODAL -->
+<div class="modal-overlay" id="bulkArchiveModal">
+  <div class="modal modal-delete" style="max-width:430px;">
+    <div class="modal-body">
+      <div class="archive-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Archive Selected Accounts</p>
+      <p class="delete-sub">Are you sure you want to archive <strong id="bulkArchiveCount">0 selected user(s)</strong>? The selected accounts will be moved to the Archive List.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('bulkArchiveModal')">Cancel</button>
+      <button class="btn-confirm-archive" onclick="confirmBulkArchive()">Archive Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK UNARCHIVE CONFIRM MODAL -->
+<div class="modal-overlay" id="bulkUnarchiveModal">
+  <div class="modal modal-delete" style="max-width:430px;">
+    <div class="modal-body">
+      <div class="unarchive-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h5l2 2h11v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 17V11m0 0l-3 3m3-3l3 3"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Unarchive Selected Accounts</p>
+      <p class="delete-sub">Are you sure you want to unarchive <strong id="bulkUnarchiveCount">0 selected user(s)</strong>? The selected accounts will return to the active user list.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('bulkUnarchiveModal')">Cancel</button>
+      <button class="btn-confirm-unarchive" onclick="confirmBulkUnarchive()">Unarchive Selected</button>
     </div>
   </div>
 </div>
