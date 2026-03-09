@@ -9,6 +9,11 @@
   @vite(['resources/css/app.css', 'resources/js/frontend/home.js'])
 </head>
 <body>
+@php
+  $authUser = auth()->user();
+  $middleInitial = $authUser?->middle_name ? strtoupper(substr($authUser->middle_name, 0, 1)).'.' : '';
+  $fullName = trim(($authUser?->last_name ?? '').', '.($authUser?->first_name ?? '').' '.$middleInitial);
+@endphp
 
 <div id="mainApp" class="app-wrapper">
 
@@ -75,7 +80,7 @@
                 <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0021.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 003.065 7.097A9.716 9.716 0 0012 21.75a9.716 9.716 0 006.685-2.653zm-12.54-1.285A7.486 7.486 0 0112 15a7.486 7.486 0 015.855 2.812A8.224 8.224 0 0112 20.25a8.224 8.224 0 01-5.855-2.438zM15.75 9a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" clip-rule="evenodd"/>
               </svg>
             </div>
-            <h2 class="profile-name">DELA CRUZ, JUAN C.</h2>
+            <h2 class="profile-name">{{ $fullName !== ',' ? $fullName : 'N/A' }}</h2>
           </div>
           <div class="profile-divider"></div>
           <div class="profile-body">
@@ -84,23 +89,23 @@
               <div class="profile-info-grid">
                 <div class="info-field">
                   <label>Username:</label>
-                  <span class="info-value">j_delacruz27</span>
+                  <span class="info-value">{{ $authUser?->username ?? 'N/A' }}</span>
                 </div>
                 <div class="info-field">
                   <label>Office/Department/Division:</label>
-                  <span class="info-value">Information and Communication Technology Division</span>
+                  <span class="info-value">{{ $authUser?->office?->name ?? 'N/A' }}</span>
                 </div>
                 <div class="info-field">
                   <label>Email:</label>
-                  <span class="info-value">j.delacruz@lra.gov.ph</span>
+                  <span class="info-value">{{ $authUser?->email ?? 'N/A' }}</span>
                 </div>
                 <div class="info-field">
                   <label>Account Role:</label>
-                  <span class="info-value">Admin</span>
+                  <span class="info-value">{{ $authUser?->role?->name ?? 'N/A' }}</span>
                 </div>
                 <div class="info-field">
                   <label>Employee ID:</label>
-                  <span class="info-value">1234-5678</span>
+                  <span class="info-value">{{ $authUser?->employee_id ?? 'N/A' }}</span>
                 </div>
               </div>
             </div>
