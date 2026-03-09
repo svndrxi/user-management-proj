@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,6 +66,7 @@ class UserApiController extends Controller
 
         $user->permissions()->sync($validated['permission_ids'] ?? []);
         $user->load(['office', 'role', 'permissions']);
+        ActivityLog::record('created_user', 'User Management', "Created user {$user->email}");
 
         return response()->json($user, 201);
     }
@@ -114,13 +116,16 @@ class UserApiController extends Controller
         $user->update($payload);
         $user->permissions()->sync($validated['permission_ids'] ?? []);
         $user->load(['office', 'role', 'permissions']);
+        ActivityLog::record('updated_user', 'User Management', "Updated user {$user->email}");
 
         return response()->json($user);
     }
 
     public function destroy(User $user): JsonResponse
     {
+        $email = $user->email;
         $user->delete();
+        ActivityLog::record('archived_user', 'User Management', "Archived user {$email}");
 
         return response()->json(['message' => 'User deleted successfully.']);
     }

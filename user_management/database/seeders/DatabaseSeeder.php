@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RolePermissionSeeder::class,
             UserSeeder::class,
-            ActivityLogSeeder::class,
+            // Keep activity logs runtime-generated (not static seed data)
+            // ActivityLogSeeder::class,
         ]);
     }
 }
