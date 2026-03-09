@@ -373,21 +373,7 @@
           </div>
           <div class="form-group full-width">
             <label>Designation / Position</label>
-            <select id="addDesignation">
-              <option value="">Select Designation/Position</option>
-              <option value="IT Officer III">IT Officer III</option>
-              <option value="IT Officer II">IT Officer II</option>
-              <option value="Administrative Officer">Administrative Officer</option>
-              <option value="Records Officer">Records Officer</option>
-              <option value="Clerk III">Clerk III</option>
-              <option value="Clerk II">Clerk II</option>
-              <option value="Division Chief">Division Chief</option>
-              <option value="Stenographer">Stenographer</option>
-              <option value="Programmer III">Programmer III</option>
-              <option value="Accountant">Accountant</option>
-              <option value="Paralegal">Paralegal</option>
-              <option value="Driver">Driver</option>
-            </select>
+            <input type="text" id="addDesignation" placeholder="Designation / Position" />
           </div>
           <div class="form-group full-width">
             <label>Office / Department / Division</label>
@@ -451,21 +437,7 @@
         </div>
         <div class="form-group full-width">
           <label>Designation / Position</label>
-          <select id="editDesignation">
-            <option value="">Select Designation/Position</option>
-            <option value="IT Officer III">IT Officer III</option>
-            <option value="IT Officer II">IT Officer II</option>
-            <option value="Administrative Officer">Administrative Officer</option>
-            <option value="Records Officer">Records Officer</option>
-            <option value="Clerk III">Clerk III</option>
-            <option value="Clerk II">Clerk II</option>
-            <option value="Division Chief">Division Chief</option>
-            <option value="Stenographer">Stenographer</option>
-            <option value="Programmer III">Programmer III</option>
-            <option value="Accountant">Accountant</option>
-            <option value="Paralegal">Paralegal</option>
-            <option value="Driver">Driver</option>
-          </select>
+          <input type="text" id="editDesignation" placeholder="Designation / Position" />
         </div>
         <div class="form-group full-width">
           <label>Office / Department / Division</label>

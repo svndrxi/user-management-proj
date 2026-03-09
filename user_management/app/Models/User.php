@@ -27,6 +27,7 @@ class User extends Authenticatable
         'first_name',
         'middle_name',
         'last_name',
+        'designation',
         'username',
         'email',
         'email_verified_at',
@@ -103,3 +104,4 @@ class User extends Authenticatable
         return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
     }
 }
+
