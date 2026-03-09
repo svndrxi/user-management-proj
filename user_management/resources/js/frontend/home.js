@@ -815,6 +815,11 @@ function saveAddUser() {
   document.getElementById('addMiddleName').value = mn;
   document.getElementById('addLastName').value = ln;
 
+  const addRoleId = Number(document.getElementById('addRole').value);
+  const addOfficeId = Number(document.getElementById('addOffice').value);
+  const addRoleName = rolesData.find((r) => Number(r.id) === addRoleId)?.name || '';
+  const addOfficeName = officesData.find((o) => Number(o.id) === addOfficeId)?.name || '';
+
   const newUser = {
     id: Date.now(),
     empId: document.getElementById('addEmpId').value.trim() || 'N/A',
@@ -823,10 +828,12 @@ function saveAddUser() {
     lastName: ln,
     email: document.getElementById('addEmail').value.trim(),
     username: document.getElementById('addUsername').value.trim(),
-    role: document.getElementById('addRole').value || 'User',
+    role: addRoleName || 'User',
+    roleId: Number.isFinite(addRoleId) ? addRoleId : null,
     status: 'Active',
     designation: document.getElementById('addDesignation').value.trim(),
-    office: document.getElementById('addOffice').value || '',
+    office: addOfficeName || '',
+    officeId: Number.isFinite(addOfficeId) ? addOfficeId : null,
     createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
   };
@@ -860,6 +867,11 @@ async function saveEditUser() {
     document.getElementById('editMiddleName').value = editMiddleName;
     document.getElementById('editLastName').value = editLastName;
 
+    const editRoleId = Number(document.getElementById('editRole').value);
+    const editOfficeId = Number(document.getElementById('editOffice').value);
+    const editRoleName = rolesData.find((r) => Number(r.id) === editRoleId)?.name || '';
+    const editOfficeName = officesData.find((o) => Number(o.id) === editOfficeId)?.name || '';
+
     usersData[idx] = {
       ...usersData[idx],
       firstName: editFirstName,
@@ -868,8 +880,10 @@ async function saveEditUser() {
       email: document.getElementById('editEmail').value.trim(),
       username: document.getElementById('editUsername').value.trim(),
       designation: document.getElementById('editDesignation').value.trim(),
-      office: document.getElementById('editOffice').value,
-      role: document.getElementById('editRole').value,
+      office: editOfficeName || usersData[idx].office || '',
+      officeId: Number.isFinite(editOfficeId) ? editOfficeId : (usersData[idx].officeId ?? null),
+      role: editRoleName || usersData[idx].role || '',
+      roleId: Number.isFinite(editRoleId) ? editRoleId : (usersData[idx].roleId ?? null),
       status: document.getElementById('editStatus').value,
       updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     };
