@@ -801,7 +801,7 @@ function normalizeNameInput(fieldId, trimEdges = false) {
   if (input.value !== formatted) input.value = formatted;
 }
 
-function saveAddUser() {
+async function saveAddUser() {
   if (!validateAddForm(true)) {
     showToast('Please complete all required fields correctly.', 'error');
     return;
@@ -817,32 +817,33 @@ function saveAddUser() {
 
   const addRoleId = Number(document.getElementById('addRole').value);
   const addOfficeId = Number(document.getElementById('addOffice').value);
-  const addRoleName = rolesData.find((r) => Number(r.id) === addRoleId)?.name || '';
-  const addOfficeName = officesData.find((o) => Number(o.id) === addOfficeId)?.name || '';
 
-  const newUser = {
-    id: Date.now(),
-    empId: document.getElementById('addEmpId').value.trim() || 'N/A',
-    firstName: fn,
-    middleName: mn,
-    lastName: ln,
-    email: document.getElementById('addEmail').value.trim(),
-    username: document.getElementById('addUsername').value.trim(),
-    role: addRoleName || 'User',
-    roleId: Number.isFinite(addRoleId) ? addRoleId : null,
-    status: 'Active',
-    designation: document.getElementById('addDesignation').value.trim(),
-    office: addOfficeName || '',
-    officeId: Number.isFinite(addOfficeId) ? addOfficeId : null,
-    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-  };
+  if (!addRoleId || !addOfficeId) {
+    showToast('Please select valid role and office.', 'error');
+    return;
+  }
 
-  usersData.unshift(newUser);
-  closeModal('addUserModal');
-  currentPage = 1;
-  renderUsers();
-  showToast('User account created successfully!', 'success');
+  try {
+    await dataSource.users.create({
+      employee_id: document.getElementById('addEmpId').value.trim(),
+      first_name: fn,
+      middle_name: mn || null,
+      last_name: ln,
+      username: document.getElementById('addUsername').value.trim(),
+      email: document.getElementById('addEmail').value.trim(),
+      password: document.getElementById('addPassword').value.trim(),
+      office_id: addOfficeId,
+      role_id: addRoleId,
+      is_active: true,
+    });
+
+    closeModal('addUserModal');
+    currentPage = 1;
+    await loadUsersFromApi();
+    showToast('User account created successfully!', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to create user.', 'error');
+  }
 }
 
 async function saveEditUser() {
@@ -856,8 +857,6 @@ async function saveEditUser() {
 
   try {
     if (!selectedUser) return;
-    const idx = usersData.findIndex(u => u.id === selectedUser.id);
-    if (idx === -1) return;
 
     const editFirstName = formatPersonName(document.getElementById('editFirstName').value);
     const editMiddleName = formatPersonName(document.getElementById('editMiddleName').value);
@@ -869,24 +868,22 @@ async function saveEditUser() {
 
     const editRoleId = Number(document.getElementById('editRole').value);
     const editOfficeId = Number(document.getElementById('editOffice').value);
-    const editRoleName = rolesData.find((r) => Number(r.id) === editRoleId)?.name || '';
-    const editOfficeName = officesData.find((o) => Number(o.id) === editOfficeId)?.name || '';
+    if (!editRoleId || !editOfficeId) {
+      showToast('Please select valid role and office.', 'error');
+      return;
+    }
 
-    usersData[idx] = {
-      ...usersData[idx],
-      firstName: editFirstName,
-      middleName: editMiddleName,
-      lastName: editLastName,
-      email: document.getElementById('editEmail').value.trim(),
+    await dataSource.users.update(selectedUser.id, {
+      employee_id: document.getElementById('editEmpId').value.trim(),
+      first_name: editFirstName,
+      middle_name: editMiddleName || null,
+      last_name: editLastName,
       username: document.getElementById('editUsername').value.trim(),
-      designation: document.getElementById('editDesignation').value.trim(),
-      office: editOfficeName || usersData[idx].office || '',
-      officeId: Number.isFinite(editOfficeId) ? editOfficeId : (usersData[idx].officeId ?? null),
-      role: editRoleName || usersData[idx].role || '',
-      roleId: Number.isFinite(editRoleId) ? editRoleId : (usersData[idx].roleId ?? null),
-      status: document.getElementById('editStatus').value,
-      updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    };
+      email: document.getElementById('editEmail').value.trim(),
+      office_id: editOfficeId,
+      role_id: editRoleId,
+      is_active: (document.getElementById('editStatus').value || 'Active') === 'Active',
+    });
 
     closeModal('editUserModal');
     await loadUsersFromApi();
