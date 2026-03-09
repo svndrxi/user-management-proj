@@ -88,6 +88,10 @@
                   <label>Employee ID:</label>
                   <span class="info-value">1234-5678</span>
                 </div>
+                <div class="info-field">
+                  <label>Last Visited:</label>
+                  <span class="info-value" id="userLastVisited">-</span>
+                </div>
               </div>
             </div>
           </div>
