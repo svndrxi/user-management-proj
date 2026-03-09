@@ -63,6 +63,27 @@ let archiveFilterRole = 'all';
 let rolesData = [];
 let officesData = [];
 
+function parseDateTime(value) {
+  if (!value) return null;
+  const normalized = typeof value === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)
+    ? value.replace(' ', 'T')
+    : value;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateTime(value) {
+  const date = parseDateTime(value);
+  if (!date) return value || '';
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function normalizeUser(u) {
   return {
     id: u.id,
@@ -78,8 +99,8 @@ function normalizeUser(u) {
     designation: '',
     office: u.office?.name || '',
     officeId: u.office_id ?? u.office?.id ?? null,
-    createdAt: u.created_at || '',
-    updatedAt: u.updated_at || '',
+    createdAt: formatDateTime(u.created_at),
+    updatedAt: formatDateTime(u.updated_at),
   };
 }
 
@@ -91,7 +112,8 @@ function normalizeAuditLog(log) {
     empId: log.user?.employee_id || '-',
     name: fullName,
     role: log.user?.role?.name || '-',
-    timestamp: log.created_at || '',
+    timestampRaw: log.created_at || log.timestamp || '',
+    timestamp: formatDateTime(log.created_at || log.timestamp),
     description: log.description || log.action || '',
   };
 }
@@ -626,8 +648,20 @@ function getFilteredAudit() {
   const fr = document.getElementById('auditFilterRole')?.value || 'all';
 
   if (q) data = data.filter(a => a.empId.toLowerCase().includes(q) || a.name.toLowerCase().includes(q));
-  if (sd) data = data.filter(a => a.timestamp >= sd);
-  if (ed) data = data.filter(a => a.timestamp <= ed + ' 23:59');
+  if (sd) {
+    const start = new Date(`${sd}T00:00:00`);
+    data = data.filter((a) => {
+      const d = parseDateTime(a.timestampRaw || a.timestamp);
+      return d ? d >= start : true;
+    });
+  }
+  if (ed) {
+    const end = new Date(`${ed}T23:59:59`);
+    data = data.filter((a) => {
+      const d = parseDateTime(a.timestampRaw || a.timestamp);
+      return d ? d <= end : true;
+    });
+  }
   if (fr !== 'all') data = data.filter(a => a.role.toLowerCase() === fr);
   return data;
 }
