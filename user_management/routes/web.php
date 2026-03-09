@@ -25,7 +25,13 @@ Route::post('/login', function (Request $request) {
 
     $request->session()->regenerate();
 
-    return redirect()->route('users.index');
+    $user = $request->user();
+
+    if ($user?->hasRole('System Admin') || $user?->hasRole('Admin')) {
+        return redirect()->route('users.index');
+    }
+
+    return redirect()->route('dashboard.user');
 })->name('frontend.login.submit');
 
 Route::post('/logout', function (Request $request) {
@@ -36,7 +42,11 @@ Route::post('/logout', function (Request $request) {
     return redirect()->route('frontend.login');
 })->name('frontend.logout');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'nocache'])->group(function () {
+    Route::view('/dashboard/user', 'dashboard.user')->name('dashboard.user');
+});
+
+Route::middleware(['auth', 'role:System Admin,Admin', 'nocache'])->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('offices', OfficeController::class);
     Route::resource('roles', RoleController::class);

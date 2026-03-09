@@ -1,3 +1,5 @@
+import { dataSource } from './data-source';
+
 // ===== SAMPLE DATA =====
 const sampleUsers = [
   { id: 1, empId: '1234-5678', firstName: 'Juan', middleName: 'Cale', lastName: 'Dela Cruz', email: 'juan.delacruz@lra.gov.ph', username: 'j.delacruz27', role: 'Admin', status: 'Active', designation: 'IT Officer III', office: 'Information and Communications Technology Division', createdAt: '2026-02-28 13:09', updatedAt: '2026-03-02 24:00' },
@@ -40,11 +42,107 @@ let sortOrder = 'asc';
 let filterRole = 'all';
 let searchQuery = '';
 let selectedUser = null;
+let rolesData = [];
+let officesData = [];
 
 // Archive list filter state
 let archiveSortField = null;
 let archiveSortOrder = 'asc';
 let archiveFilterRole = 'all';
+
+function normalizeUser(u) {
+  return {
+    id: u.id,
+    empId: u.employee_id,
+    firstName: u.first_name,
+    middleName: u.middle_name || '',
+    lastName: u.last_name,
+    email: u.email,
+    username: u.username,
+    role: u.role?.name || '',
+    roleId: u.role_id ?? u.role?.id ?? null,
+    status: u.is_active === false ? 'Inactive' : 'Active',
+    designation: '',
+    office: u.office?.name || '',
+    officeId: u.office_id ?? u.office?.id ?? null,
+    createdAt: u.created_at || '',
+    updatedAt: u.updated_at || '',
+  };
+}
+
+function normalizeAuditLog(log) {
+  const fullName = log.user
+    ? `${log.user.first_name} ${log.user.last_name}`.trim()
+    : 'System';
+  return {
+    empId: log.user?.employee_id || '-',
+    name: fullName,
+    role: log.user?.role?.name || '-',
+    timestamp: log.created_at || '',
+    description: log.description || log.action || '',
+  };
+}
+
+function hydrateRoleOfficeSelects() {
+  const roleSelectIds = ['addRole', 'editRole'];
+  const officeSelectIds = ['addOffice', 'editOffice'];
+
+  roleSelectIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    el.innerHTML = '<option value="">Select Account Role</option>';
+    rolesData.forEach((role) => {
+      const opt = document.createElement('option');
+      opt.value = String(role.id);
+      opt.textContent = role.name;
+      el.appendChild(opt);
+    });
+    el.value = current;
+  });
+
+  officeSelectIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    el.innerHTML = '<option value="">Select Office/Department/Division</option>';
+    officesData.forEach((office) => {
+      const opt = document.createElement('option');
+      opt.value = String(office.id);
+      opt.textContent = office.name;
+      el.appendChild(opt);
+    });
+    el.value = current;
+  });
+}
+
+async function loadReferenceData() {
+  const [rolesRes, officesRes] = await Promise.all([
+    dataSource.roles.list({ per_page: 100 }),
+    dataSource.offices.list({ per_page: 100 }),
+  ]);
+  rolesData = rolesRes.data || [];
+  officesData = officesRes.data || [];
+  hydrateRoleOfficeSelects();
+}
+
+async function loadUsersFromApi() {
+  const res = await dataSource.users.list({ per_page: 200 });
+  usersData = (res.data || []).map(normalizeUser);
+  renderUsers();
+}
+
+async function loadArchivedUsersFromApi() {
+  const res = await dataSource.users.list({ per_page: 200, only_archived: 1 });
+  archivedUsers = (res.data || []).map(normalizeUser);
+  renderArchive();
+}
+
+async function loadAuditFromApi() {
+  const res = await dataSource.activityLogs.list({ per_page: 200 });
+  auditData = (res.data || []).map(normalizeAuditLog);
+  renderAudit();
+}
 
 Object.defineProperties(window, {
   currentPage: {
@@ -81,11 +179,16 @@ function navigate(pageId) {
 
 // ===== ARCHIVE LIST VIEW =====
 // Shows the archive list panel inside the User Management page
-function openArchiveList() {
+async function openArchiveList() {
   document.getElementById('userManagementMain').style.display = 'none';
   document.getElementById('archiveListPanel').style.display = 'block';
   archivePage = 1;
-  renderArchive();
+  try {
+    await loadArchivedUsersFromApi();
+  } catch (e) {
+    showToast(e.message || 'Failed to load archived users.', 'error');
+    renderArchive();
+  }
 }
 
 function closeArchiveList() {
@@ -332,8 +435,8 @@ function openEditModal(userId) {
   document.getElementById('editEmpId').value = user.empId;
   document.getElementById('editUsername').value = user.username;
   document.getElementById('editDesignation').value = user.designation;
-  document.getElementById('editOffice').value = user.office;
-  document.getElementById('editRole').value = user.role;
+  document.getElementById('editOffice').value = String(user.officeId ?? '');
+  document.getElementById('editRole').value = String(user.roleId ?? '');
   document.getElementById('editStatus').value = user.status || 'Active';
   openModal('editUserModal');
 }
@@ -364,68 +467,82 @@ function openArchiveModal(userId) {
   openModal('archiveModal');
 }
 
-function confirmArchive() {
+async function confirmArchive() {
   if (!selectedUser) return;
-  // Move from active to archived
-  archivedUsers.unshift({ ...selectedUser, archivedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') });
-  usersData = usersData.filter(u => u.id !== selectedUser.id);
-  closeModal('archiveModal');
-  renderUsers();
-  showToast('User archived successfully.', 'info');
-  selectedUser = null;
+  try {
+    await dataSource.users.archive(selectedUser.id);
+    closeModal('archiveModal');
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    showToast('User archived successfully.', 'info');
+    selectedUser = null;
+  } catch (e) {
+    showToast(e.message || 'Failed to archive user.', 'error');
+  }
 }
 
-function saveAddUser() {
+async function saveAddUser() {
   const fn = document.getElementById('addFirstName').value.trim();
   const ln = document.getElementById('addLastName').value.trim();
-  if (!fn || !ln) { showToast('First name and last name are required.', 'error'); return; }
+  const email = document.getElementById('addEmail').value.trim();
+  const username = document.getElementById('addUsername').value.trim();
+  const employeeId = document.getElementById('addEmpId').value.trim();
+  const password = document.getElementById('addPassword').value.trim();
+  const roleId = Number(document.getElementById('addRole').value);
+  const officeId = Number(document.getElementById('addOffice').value);
 
-  const newUser = {
-    id: Date.now(),
-    empId: document.getElementById('addEmpId').value.trim() || 'N/A',
-    firstName: fn,
-    middleName: document.getElementById('addMiddleName').value.trim(),
-    lastName: ln,
-    email: document.getElementById('addEmail').value.trim(),
-    username: document.getElementById('addUsername').value.trim(),
-    role: document.getElementById('addRole').value || 'User',
-    status: 'Active',
-    designation: document.getElementById('addDesignation').value.trim(),
-    office: document.getElementById('addOffice').value || '',
-    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-  };
+  if (!fn || !ln || !email || !username || !employeeId || !password || !roleId || !officeId) {
+    showToast('Please complete all required fields.', 'error');
+    return;
+  }
 
-  usersData.unshift(newUser);
-  closeModal('addUserModal');
-  currentPage = 1;
-  renderUsers();
-  showToast('User account created successfully!', 'success');
+  try {
+    await dataSource.users.create({
+      employee_id: employeeId,
+      first_name: fn,
+      middle_name: document.getElementById('addMiddleName').value.trim() || null,
+      last_name: ln,
+      username,
+      email,
+      password,
+      office_id: officeId,
+      role_id: roleId,
+      is_active: true,
+    });
+
+    closeModal('addUserModal');
+    currentPage = 1;
+    await loadUsersFromApi();
+    showToast('User account created successfully!', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to create user.', 'error');
+  }
 }
 
-function saveEditUser() {
+async function saveEditUser() {
   if (!selectedUser) return;
-  const idx = usersData.findIndex(u => u.id === selectedUser.id);
-  if (idx === -1) return;
+  const roleId = Number(document.getElementById('editRole').value);
+  const officeId = Number(document.getElementById('editOffice').value);
 
-  usersData[idx] = {
-    ...usersData[idx],
-    firstName: document.getElementById('editFirstName').value.trim() || usersData[idx].firstName,
-    middleName: document.getElementById('editMiddleName').value.trim(),
-    lastName: document.getElementById('editLastName').value.trim() || usersData[idx].lastName,
-    email: document.getElementById('editEmail').value.trim(),
-    username: document.getElementById('editUsername').value.trim(),
-    designation: document.getElementById('editDesignation').value.trim(),
-    office: document.getElementById('editOffice').value,
-    role: document.getElementById('editRole').value,
-    status: document.getElementById('editStatus').value,
-    updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-  };
+  try {
+    await dataSource.users.update(selectedUser.id, {
+      employee_id: document.getElementById('editEmpId').value.trim() || selectedUser.empId,
+      first_name: document.getElementById('editFirstName').value.trim() || selectedUser.firstName,
+      middle_name: document.getElementById('editMiddleName').value.trim() || null,
+      last_name: document.getElementById('editLastName').value.trim() || selectedUser.lastName,
+      email: document.getElementById('editEmail').value.trim() || selectedUser.email,
+      username: document.getElementById('editUsername').value.trim() || selectedUser.username,
+      office_id: officeId || selectedUser.officeId,
+      role_id: roleId || selectedUser.roleId,
+      is_active: (document.getElementById('editStatus').value || 'Active') === 'Active',
+    });
 
-  closeModal('editUserModal');
-  renderUsers();
-  showToast('User profile updated successfully.', 'success');
-  selectedUser = null;
+    closeModal('editUserModal');
+    await loadUsersFromApi();
+    showToast('User profile updated successfully.', 'success');
+    selectedUser = null;
+  } catch (e) {
+    showToast(e.message || 'Failed to update user.', 'error');
+  }
 }
 
 // ===== GENERATE PASSWORD =====
@@ -516,9 +633,25 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 });
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('userTableBody')) renderUsers();
-  if (document.getElementById('auditTableBody')) renderAudit();
+document.addEventListener('DOMContentLoaded', async () => {
+  if (document.getElementById('userTableBody')) {
+    try {
+      await loadReferenceData();
+      await loadUsersFromApi();
+    } catch (e) {
+      showToast(e.message || 'Failed to load users.', 'error');
+      renderUsers();
+    }
+  }
+
+  if (document.getElementById('auditTableBody')) {
+    try {
+      await loadAuditFromApi();
+    } catch (e) {
+      showToast(e.message || 'Failed to load activity logs.', 'error');
+      renderAudit();
+    }
+  }
 
   // Sidebar toggle
   const sidebar     = document.getElementById('sidebar');
@@ -540,6 +673,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 Object.assign(window, {
+  dataSource,
+  loadUsersFromApi,
+  loadArchivedUsersFromApi,
+  loadAuditFromApi,
   navigate,
   openArchiveList,
   closeArchiveList,
