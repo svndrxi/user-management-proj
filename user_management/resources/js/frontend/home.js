@@ -145,6 +145,26 @@ function getVisibleArchivedRows() {
   return data.slice((archivePage - 1) * ROWS_PER_PAGE, archivePage * ROWS_PER_PAGE);
 }
 
+function setBulkActionsVisible(element, isVisible) {
+  if (!element) return;
+
+  const currentlyVisible = element.style.display !== 'none';
+
+  if (isVisible && !currentlyVisible) {
+    element.style.display = 'flex';
+
+    // Let the browser paint first so the transition can animate in.
+    requestAnimationFrame(() => {
+      element.classList.add('bulk-actions-visible');
+    });
+  }
+
+  if (!isVisible && currentlyVisible) {
+    element.classList.remove('bulk-actions-visible');
+    element.style.display = 'none';
+  }
+}
+
 function updateBulkActionUI() {
   const userBulk = document.getElementById('userBulkActions');
   const userCount = document.getElementById('userSelectedCount');
@@ -152,12 +172,12 @@ function updateBulkActionUI() {
   const archiveCount = document.getElementById('archiveSelectedCount');
 
   if (userBulk && userCount) {
-    userBulk.style.display = selectedUserIds.size > 0 ? 'flex' : 'none';
+    setBulkActionsVisible(userBulk, selectedUserIds.size > 0);
     userCount.textContent = `${selectedUserIds.size} selected`;
   }
 
   if (archiveBulk && archiveCount) {
-    archiveBulk.style.display = selectedArchivedUserIds.size > 0 ? 'flex' : 'none';
+    setBulkActionsVisible(archiveBulk, selectedArchivedUserIds.size > 0);
     archiveCount.textContent = `${selectedArchivedUserIds.size} selected`;
   }
 }
@@ -225,6 +245,26 @@ function clearArchivedSelection() {
 function bulkArchiveSelectedUsers() {
   if (selectedUserIds.size === 0) return;
 
+  const selectedUsers = usersData.filter((u) => selectedUserIds.has(u.id));
+  if (selectedUsers.length === 0) {
+    selectedUserIds.clear();
+    updateBulkActionUI();
+    renderUsers();
+    return;
+  }
+
+  const bulkArchiveCount = document.getElementById('bulkArchiveCount');
+  if (bulkArchiveCount) bulkArchiveCount.textContent = `${selectedUsers.length} selected user(s)`;
+
+  openModal('bulkArchiveModal');
+}
+
+function confirmBulkArchive() {
+  if (selectedUserIds.size === 0) {
+    closeModal('bulkArchiveModal');
+    return;
+  }
+
   const selectedIdList = Array.from(selectedUserIds);
   const selectedUsers = usersData.filter((u) => selectedUserIds.has(u.id));
 
@@ -243,6 +283,7 @@ function bulkArchiveSelectedUsers() {
   usersData = usersData.filter((u) => !selectedUserIds.has(u.id));
   selectedUserIds.clear();
   selectedIdList.forEach((id) => selectedArchivedUserIds.delete(id));
+  closeModal('bulkArchiveModal');
 
   renderUsers();
   renderArchive();
@@ -261,12 +302,34 @@ function bulkUnarchiveSelectedUsers() {
     return;
   }
 
+  const bulkUnarchiveCount = document.getElementById('bulkUnarchiveCount');
+  if (bulkUnarchiveCount) bulkUnarchiveCount.textContent = `${selectedUsers.length} selected user(s)`;
+
+  openModal('bulkUnarchiveModal');
+}
+
+function confirmBulkUnarchive() {
+  if (selectedArchivedUserIds.size === 0) {
+    closeModal('bulkUnarchiveModal');
+    return;
+  }
+
+  const selectedUsers = archivedUsers.filter((u) => selectedArchivedUserIds.has(u.id));
+  if (selectedUsers.length === 0) {
+    selectedArchivedUserIds.clear();
+    updateBulkActionUI();
+    renderArchive();
+    closeModal('bulkUnarchiveModal');
+    return;
+  }
+
   selectedUsers.forEach((u) => {
     usersData.unshift(u);
   });
 
   archivedUsers = archivedUsers.filter((u) => !selectedArchivedUserIds.has(u.id));
   selectedArchivedUserIds.clear();
+  closeModal('bulkUnarchiveModal');
 
   renderArchive();
   renderUsers();
@@ -1255,7 +1318,9 @@ Object.assign(window, {
   clearUserSelection,
   clearArchivedSelection,
   bulkArchiveSelectedUsers,
+  confirmBulkArchive,
   bulkUnarchiveSelectedUsers,
+  confirmBulkUnarchive,
   toggleDropdown,
   setSortField,
   setFilterRole,
