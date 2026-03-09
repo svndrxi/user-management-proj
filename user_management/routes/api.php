@@ -8,10 +8,10 @@ use App\Http\Controllers\Api\UserApiController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
-Route::middleware('role:System Admin,Admin')->name('api.')->group(function () {
+Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
-    })->middleware('auth:sanctum');
+    });
     Route::apiResource('users', UserApiController::class);
     Route::apiResource('offices', OfficeApiController::class);
     Route::apiResource('roles', RoleApiController::class);

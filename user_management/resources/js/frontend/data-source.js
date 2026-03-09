@@ -1,4 +1,10 @@
-const API_BASE = "/api";
+const appBaseFromMeta = document
+  .querySelector('meta[name="app-base-url"]')
+  ?.getAttribute("content");
+
+const APP_BASE = (appBaseFromMeta || window.location.origin).replace(/\/+$/, "");
+const API_BASE = `${APP_BASE}/api`;
+const CSRF_COOKIE_URL = `${APP_BASE}/sanctum/csrf-cookie`;
 
 function getCookie(name) {
   const cookie = document.cookie
@@ -10,16 +16,24 @@ function getCookie(name) {
 }
 
 async function ensureCsrfCookie() {
-  await fetch("/sanctum/csrf-cookie", {
+  // Check the actual cookie instead of an in-memory flag
+  // so stale/expired tokens are always refreshed
+  if (getCookie("XSRF-TOKEN")) return;
+
+  const response = await fetch(CSRF_COOKIE_URL, {
     credentials: "include",
     headers: {
       Accept: "application/json",
       "X-Requested-With": "XMLHttpRequest",
     },
   });
+
+  if (!response.ok) {
+    throw new Error(`Failed to initialize CSRF cookie (${response.status}).`);
+  }
 }
 
-async function request(path, options = {}) {
+async function request(path, options = {}, _retry = false) {
   const method = (options.method || "GET").toUpperCase();
   const isWrite = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 
@@ -28,8 +42,10 @@ async function request(path, options = {}) {
   }
 
   const xsrfToken = getCookie("XSRF-TOKEN");
-  const csrfMetaToken =
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || null;
+
+  const csrfTokenMeta = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute("content");
 
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
@@ -38,11 +54,23 @@ async function request(path, options = {}) {
       "Content-Type": "application/json",
       "X-Requested-With": "XMLHttpRequest",
       ...(xsrfToken ? { "X-XSRF-TOKEN": xsrfToken } : {}),
-      ...(csrfMetaToken ? { "X-CSRF-TOKEN": csrfMetaToken } : {}),
+      ...(csrfTokenMeta ? { "X-CSRF-TOKEN": csrfTokenMeta } : {}),
       ...(options.headers || {}),
     },
     ...options,
   });
+
+  // CSRF token expired mid-session — refresh cookie and retry once
+  if (response.status === 419 && !_retry) {
+    await fetch(CSRF_COOKIE_URL, {
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
+    return request(path, options, true);
+  }
 
   const contentType = response.headers.get("content-type") || "";
   const body = contentType.includes("application/json")
