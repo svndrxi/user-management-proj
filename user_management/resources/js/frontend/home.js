@@ -85,6 +85,8 @@ function formatDateTime(value) {
 }
 
 function normalizeUser(u) {
+  const isInactive = u.is_active === false || u.is_active === 0 || u.is_active === '0';
+
   return {
     id: u.id,
     empId: u.employee_id,
@@ -96,7 +98,7 @@ function normalizeUser(u) {
     username: u.username,
     role: u.role?.name || '',
     roleId: u.role_id ?? u.role?.id ?? null,
-    status: u.is_active === false ? 'Inactive' : 'Active',
+    status: isInactive ? 'Inactive' : 'Active',
     office: u.office?.name || '',
     officeId: u.office_id ?? u.office?.id ?? null,
     createdAt: formatDateTime(u.created_at),
