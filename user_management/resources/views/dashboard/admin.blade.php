@@ -299,6 +299,11 @@
               </svg>
             </div>
             <div class="toolbar-right" style="display:flex;gap:10px;align-items:center;">
+              <div id="payslipBulkActions" class="bulk-actions" style="display:none;">
+                <span class="bulk-count" id="payslipSelectedCount">0 selected</span>
+                <button class="btn-bulk-clear" onclick="clearPayslipSelection()">Clear</button>
+                <button class="btn-bulk-archive" onclick="bulkArchiveSelectedPayslips()">Archive</button>
+              </div>
               <button class="btn-archive-list" onclick="openPayslipArchiveList()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
@@ -317,6 +322,9 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th style="width:44px;">
+                    <input type="checkbox" id="payslipSelectAllCheckbox" onchange="toggleSelectAllVisiblePayslips(this.checked)" />
+                  </th>
                   <th>Employee ID</th>
                   <th>Name</th>
                   <th>Month</th>
@@ -341,7 +349,12 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
               </svg>
             </div>
-            <div class="toolbar-right">
+            <div class="toolbar-right" style="display:flex;gap:10px;align-items:center;">
+              <div id="payslipArchiveBulkActions" class="bulk-actions" style="display:none;">
+                <span class="bulk-count" id="payslipArchiveSelectedCount">0 selected</span>
+                <button class="btn-bulk-clear" onclick="clearArchivedPayslipSelection()">Clear</button>
+                <button class="btn-bulk-unarchive" onclick="bulkUnarchiveSelectedPayslips()">Unarchive</button>
+              </div>
               <button class="btn-back" onclick="closePayslipArchiveList()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12"/>
@@ -354,6 +367,9 @@
             <table class="data-table">
               <thead>
                 <tr>
+                  <th style="width:44px;">
+                    <input type="checkbox" id="payslipArchiveSelectAllCheckbox" onchange="toggleSelectAllVisibleArchivedPayslips(this.checked)" />
+                  </th>
                   <th>Employee ID</th>
                   <th>Name</th>
                   <th>Month</th>
@@ -822,6 +838,45 @@
     <div class="modal-footer" style="justify-content:center;">
       <button class="btn-cancel" onclick="closeModal('unarchivePayslipModal')">Cancel</button>
       <button class="btn-confirm-unarchive" onclick="confirmUnarchivePayslip()">Unarchive</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK ARCHIVE PAYSLIP CONFIRM MODAL -->
+<div class="modal-overlay" id="bulkArchivePayslipModal">
+  <div class="modal modal-delete" style="max-width:400px;">
+    <div class="modal-body">
+      <div class="archive-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Archive Payslips</p>
+      <p class="delete-sub">Are you sure you want to archive <strong id="bulkArchivePayslipCount">0 selected payslip(s)</strong>? The selected payslips will be moved to the Archive List.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('bulkArchivePayslipModal')">Cancel</button>
+      <button class="btn-confirm-archive" onclick="confirmBulkArchivePayslips()">Archive Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK UNARCHIVE PAYSLIP CONFIRM MODAL -->
+<div class="modal-overlay" id="bulkUnarchivePayslipModal">
+  <div class="modal modal-delete" style="max-width:400px;">
+    <div class="modal-body">
+      <div class="unarchive-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h5l2 2h11v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 17V11m0 0l-3 3m3-3l3 3"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Unarchive Payslips</p>
+      <p class="delete-sub">Are you sure you want to unarchive <strong id="bulkUnarchivePayslipCount">0 selected payslip(s)</strong>? The selected payslips will be restored to the active list.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('bulkUnarchivePayslipModal')">Cancel</button>
+      <button class="btn-confirm-unarchive" onclick="confirmBulkUnarchivePayslips()">Unarchive Selected</button>
     </div>
   </div>
 </div>

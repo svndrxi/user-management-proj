@@ -80,6 +80,8 @@ let payslipSearchQuery = '';
 let selectedPayslip = null;
 let selectedArchivedPayslip = null;
 let nextPayslipId = samplePayslips.length + 1;
+let selectedPayslipIds = new Set();
+let selectedArchivedPayslipIds = new Set();
 
 function parseDateTime(value) {
   if (!value) return null;
@@ -328,6 +330,10 @@ function updateBulkActionUI() {
   const userCount = document.getElementById('userSelectedCount');
   const archiveBulk = document.getElementById('archiveBulkActions');
   const archiveCount = document.getElementById('archiveSelectedCount');
+  const payslipBulk = document.getElementById('payslipBulkActions');
+  const payslipCount = document.getElementById('payslipSelectedCount');
+  const payslipArchiveBulk = document.getElementById('payslipArchiveBulkActions');
+  const payslipArchiveCount = document.getElementById('payslipArchiveSelectedCount');
 
   if (userBulk && userCount) {
     setBulkActionsVisible(userBulk, selectedUserIds.size > 0);
@@ -337,6 +343,16 @@ function updateBulkActionUI() {
   if (archiveBulk && archiveCount) {
     setBulkActionsVisible(archiveBulk, selectedArchivedUserIds.size > 0);
     archiveCount.textContent = `${selectedArchivedUserIds.size} selected`;
+  }
+
+  if (payslipBulk && payslipCount) {
+    setBulkActionsVisible(payslipBulk, selectedPayslipIds.size > 0);
+    payslipCount.textContent = `${selectedPayslipIds.size} selected`;
+  }
+
+  if (payslipArchiveBulk && payslipArchiveCount) {
+    setBulkActionsVisible(payslipArchiveBulk, selectedArchivedPayslipIds.size > 0);
+    payslipArchiveCount.textContent = `${selectedArchivedPayslipIds.size} selected`;
   }
 }
 
@@ -1465,11 +1481,13 @@ function openPayslipArchiveList() {
   document.getElementById('payslipArchivePanel').style.display = 'block';
   payslipArchivePage = 1;
   renderArchivedPayslips();
+  updateBulkActionUI();
 }
 
 function closePayslipArchiveList() {
   document.getElementById('payslipArchivePanel').style.display = 'none';
   document.getElementById('payslipManagementMain').style.display = 'block';
+  updateBulkActionUI();
 }
 
 function formatPayDate(dateStr) {
@@ -1504,6 +1522,14 @@ function renderPayslips() {
     const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>
+        <input
+          type="checkbox"
+          class="table-select-checkbox"
+          onchange="togglePayslipSelection(${p.id}, this.checked)"
+          ${selectedPayslipIds.has(p.id) ? 'checked' : ''}
+        />
+      </td>
       <td>${p.empId}</td>
       <td>${displayName}</td>
       <td>${p.month}</td>
@@ -1529,9 +1555,12 @@ function renderPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="5"></td>';
+    tr.innerHTML = '<td colspan="6"></td>';
     tbody.appendChild(tr);
   }
+
+  updateSelectAllState('payslipSelectAllCheckbox', selectedPayslipIds, pageData);
+  updateBulkActionUI();
 
   renderPagination('payslipPagination', totalPages, payslipPage, (p) => { payslipPage = p; renderPayslips(); });
 }
@@ -1561,6 +1590,14 @@ function renderArchivedPayslips() {
     const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td>
+        <input
+          type="checkbox"
+          class="table-select-checkbox"
+          onchange="toggleArchivedPayslipSelection(${p.id}, this.checked)"
+          ${selectedArchivedPayslipIds.has(p.id) ? 'checked' : ''}
+        />
+      </td>
       <td>${p.empId}</td>
       <td>${displayName}</td>
       <td>${p.month}</td>
@@ -1578,9 +1615,12 @@ function renderArchivedPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="5"></td>';
+    tr.innerHTML = '<td colspan="6"></td>';
     tbody.appendChild(tr);
   }
+
+  updateSelectAllState('payslipArchiveSelectAllCheckbox', selectedArchivedPayslipIds, pageData);
+  updateBulkActionUI();
 
   renderPagination('payslipArchivePagination', totalPages, payslipArchivePage, (p) => { payslipArchivePage = p; renderArchivedPayslips(); });
 }
@@ -1634,8 +1674,10 @@ function openArchivePayslipModal(payslipId) {
 
 function confirmArchivePayslip() {
   if (!selectedPayslip) return;
+  const archivedId = selectedPayslip.id;
   archivedPayslips.unshift({ ...selectedPayslip });
   payslipsData = payslipsData.filter(ps => ps.id !== selectedPayslip.id);
+  selectedPayslipIds.delete(archivedId);
   closeModal('archivePayslipModal');
   renderPayslips();
   renderArchivedPayslips();
@@ -1654,13 +1696,157 @@ function openUnarchivePayslipModal(payslipId) {
 
 function confirmUnarchivePayslip() {
   if (!selectedArchivedPayslip) return;
+  const unarchivedId = selectedArchivedPayslip.id;
   payslipsData.unshift({ ...selectedArchivedPayslip });
   archivedPayslips = archivedPayslips.filter(ps => ps.id !== selectedArchivedPayslip.id);
+  selectedArchivedPayslipIds.delete(unarchivedId);
   closeModal('unarchivePayslipModal');
   renderArchivedPayslips();
   renderPayslips();
   showToast('Payslip unarchived successfully.', 'success');
   selectedArchivedPayslip = null;
+}
+
+// ===== BULK PAYSLIP FUNCTIONS =====
+function getVisiblePayslipRows() {
+  const data = getFilteredPayslips();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (payslipPage > totalPages) payslipPage = totalPages;
+  return data.slice((payslipPage - 1) * ROWS_PER_PAGE, payslipPage * ROWS_PER_PAGE);
+}
+
+function getVisibleArchivedPayslipRows() {
+  const data = getFilteredArchivedPayslips();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (payslipArchivePage > totalPages) payslipArchivePage = totalPages;
+  return data.slice((payslipArchivePage - 1) * ROWS_PER_PAGE, payslipArchivePage * ROWS_PER_PAGE);
+}
+
+function togglePayslipSelection(payslipId, checked) {
+  if (checked) selectedPayslipIds.add(payslipId);
+  else selectedPayslipIds.delete(payslipId);
+  updateSelectAllState('payslipSelectAllCheckbox', selectedPayslipIds, getVisiblePayslipRows());
+  updateBulkActionUI();
+}
+
+function toggleArchivedPayslipSelection(payslipId, checked) {
+  if (checked) selectedArchivedPayslipIds.add(payslipId);
+  else selectedArchivedPayslipIds.delete(payslipId);
+  updateSelectAllState('payslipArchiveSelectAllCheckbox', selectedArchivedPayslipIds, getVisibleArchivedPayslipRows());
+  updateBulkActionUI();
+}
+
+function toggleSelectAllVisiblePayslips(checked) {
+  const visibleRows = getVisiblePayslipRows();
+  visibleRows.forEach((p) => {
+    if (checked) selectedPayslipIds.add(p.id);
+    else selectedPayslipIds.delete(p.id);
+  });
+  renderPayslips();
+  updateBulkActionUI();
+}
+
+function toggleSelectAllVisibleArchivedPayslips(checked) {
+  const visibleRows = getVisibleArchivedPayslipRows();
+  visibleRows.forEach((p) => {
+    if (checked) selectedArchivedPayslipIds.add(p.id);
+    else selectedArchivedPayslipIds.delete(p.id);
+  });
+  renderArchivedPayslips();
+  updateBulkActionUI();
+}
+
+function clearPayslipSelection() {
+  selectedPayslipIds.clear();
+  renderPayslips();
+  updateBulkActionUI();
+}
+
+function clearArchivedPayslipSelection() {
+  selectedArchivedPayslipIds.clear();
+  renderArchivedPayslips();
+  updateBulkActionUI();
+}
+
+function bulkArchiveSelectedPayslips() {
+  if (selectedPayslipIds.size === 0) return;
+  const selectedItems = payslipsData.filter((p) => selectedPayslipIds.has(p.id));
+  if (selectedItems.length === 0) {
+    selectedPayslipIds.clear();
+    updateBulkActionUI();
+    renderPayslips();
+    return;
+  }
+  const count = document.getElementById('bulkArchivePayslipCount');
+  if (count) count.textContent = `${selectedItems.length} selected payslip(s)`;
+  openModal('bulkArchivePayslipModal');
+}
+
+function confirmBulkArchivePayslips() {
+  if (selectedPayslipIds.size === 0) {
+    closeModal('bulkArchivePayslipModal');
+    return;
+  }
+  const selectedIdList = Array.from(selectedPayslipIds);
+  const selectedItems = payslipsData.filter((p) => selectedPayslipIds.has(p.id));
+  if (selectedItems.length === 0) {
+    selectedPayslipIds.clear();
+    updateBulkActionUI();
+    renderPayslips();
+    closeModal('bulkArchivePayslipModal');
+    return;
+  }
+  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  selectedItems.forEach((p) => {
+    archivedPayslips.unshift({ ...p, archivedAt: now });
+  });
+  payslipsData = payslipsData.filter((p) => !selectedPayslipIds.has(p.id));
+  selectedPayslipIds.clear();
+  selectedIdList.forEach((id) => selectedArchivedPayslipIds.delete(id));
+  closeModal('bulkArchivePayslipModal');
+  renderPayslips();
+  renderArchivedPayslips();
+  updateBulkActionUI();
+  showToast(`${selectedItems.length} payslip(s) archived successfully.`, 'info');
+}
+
+function bulkUnarchiveSelectedPayslips() {
+  if (selectedArchivedPayslipIds.size === 0) return;
+  const selectedItems = archivedPayslips.filter((p) => selectedArchivedPayslipIds.has(p.id));
+  if (selectedItems.length === 0) {
+    selectedArchivedPayslipIds.clear();
+    updateBulkActionUI();
+    renderArchivedPayslips();
+    return;
+  }
+  const count = document.getElementById('bulkUnarchivePayslipCount');
+  if (count) count.textContent = `${selectedItems.length} selected payslip(s)`;
+  openModal('bulkUnarchivePayslipModal');
+}
+
+function confirmBulkUnarchivePayslips() {
+  if (selectedArchivedPayslipIds.size === 0) {
+    closeModal('bulkUnarchivePayslipModal');
+    return;
+  }
+  const selectedItems = archivedPayslips.filter((p) => selectedArchivedPayslipIds.has(p.id));
+  if (selectedItems.length === 0) {
+    selectedArchivedPayslipIds.clear();
+    updateBulkActionUI();
+    renderArchivedPayslips();
+    closeModal('bulkUnarchivePayslipModal');
+    return;
+  }
+  selectedItems.forEach((p) => {
+    payslipsData.unshift(p);
+  });
+  archivedPayslips = archivedPayslips.filter((p) => !selectedArchivedPayslipIds.has(p.id));
+  selectedArchivedPayslipIds.clear();
+  closeModal('bulkUnarchivePayslipModal');
+  renderArchivedPayslips();
+  renderPayslips();
+  updateBulkActionUI();
+  showToast(`${selectedItems.length} payslip(s) unarchived successfully.`, 'success');
 }
 
 // ===== IMPORT PAYSLIP =====
@@ -1979,4 +2165,14 @@ Object.assign(window, {
   handleImportDrop,
   confirmImport,
   printPayslip,
+  togglePayslipSelection,
+  toggleArchivedPayslipSelection,
+  toggleSelectAllVisiblePayslips,
+  toggleSelectAllVisibleArchivedPayslips,
+  clearPayslipSelection,
+  clearArchivedPayslipSelection,
+  bulkArchiveSelectedPayslips,
+  confirmBulkArchivePayslips,
+  bulkUnarchiveSelectedPayslips,
+  confirmBulkUnarchivePayslips,
 });
