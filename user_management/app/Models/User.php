@@ -86,6 +86,11 @@ class User extends Authenticatable
         return $this->hasMany(ActivityLog::class);
     }
 
+    public function payslips(): HasMany
+    {
+        return $this->hasMany(Payslip::class);
+    }
+
     public function hasPermission(string $slug): bool
     {
         // Check direct user permission first, then fall back to role
@@ -106,4 +111,3 @@ class User extends Authenticatable
         return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
     }
 }
-

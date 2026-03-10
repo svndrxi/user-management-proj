@@ -36,6 +36,7 @@ async function ensureCsrfCookie() {
 async function request(path, options = {}, _retry = false) {
   const method = (options.method || "GET").toUpperCase();
   const isWrite = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
 
   if (isWrite) {
     await ensureCsrfCookie();
@@ -51,7 +52,7 @@ async function request(path, options = {}, _retry = false) {
     credentials: "include",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       "X-Requested-With": "XMLHttpRequest",
       ...(xsrfToken ? { "X-XSRF-TOKEN": xsrfToken } : {}),
       ...(csrfTokenMeta ? { "X-CSRF-TOKEN": csrfTokenMeta } : {}),
@@ -203,6 +204,38 @@ export const dataSource = {
     },
     remove(id) {
       return request(`/activity-logs/${id}`, { method: "DELETE" });
+    },
+  },
+
+  payslips: {
+    list(params = {}) {
+      return request(`/payslips${toQuery(params)}`);
+    },
+    get(id) {
+      return request(`/payslips/${id}`);
+    },
+    create(payload) {
+      return request("/payslips", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+    update(id, payload) {
+      return request(`/payslips/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    },
+    archive(id) {
+      return request(`/payslips/${id}`, { method: "DELETE" });
+    },
+    import(file) {
+      const form = new FormData();
+      form.append("file", file);
+      return request("/payslips/import", {
+        method: "POST",
+        body: form,
+      });
     },
   },
 };

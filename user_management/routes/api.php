@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActivityLogApiController;
 use App\Http\Controllers\Api\OfficeApiController;
+use App\Http\Controllers\Api\PayslipApiController;
 use App\Http\Controllers\Api\PermissionApiController;
 use App\Http\Controllers\Api\RoleApiController;
 use App\Http\Controllers\Api\UserApiController;
@@ -17,4 +18,6 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
     Route::apiResource('roles', RoleApiController::class);
     Route::apiResource('permissions', PermissionApiController::class)->except(['destroy']);
     Route::apiResource('activity-logs', ActivityLogApiController::class)->only(['index', 'show', 'destroy']);
+    Route::post('payslips/import', [PayslipApiController::class, 'import'])->name('payslips.import');
+    Route::apiResource('payslips', PayslipApiController::class);
 });

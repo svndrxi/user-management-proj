@@ -17,12 +17,14 @@ const sampleUsers = [
 ];
 
 // ===== SAMPLE PAYSLIP DATA =====
+/** 
 const samplePayslips = [
   { id: 1, empId: '1234-5678', firstName: 'Juan', middleName: 'Cale', lastName: 'Dela Cruz', month: 'January', payDate: '2026-01-15' },
   { id: 2, empId: '1234-8675', firstName: 'Maria', middleName: 'Santos', lastName: 'Reyes', month: 'February', payDate: '2026-02-15' },
   { id: 3, empId: '1234-7365', firstName: 'Carlos', middleName: 'Lopez', lastName: 'Santos', month: 'March', payDate: '2026-03-15' },
   { id: 4, empId: '1234-9845', firstName: 'Ana', middleName: 'Cruz', lastName: 'Mendoza', month: 'April', payDate: '2026-04-15' },
 ];
+**/
 
 const sampleAuditLogs = [
   { empId: '1234-5678', name: 'Juan C. Dela Cruz', role: 'Admin', timestamp: '2026-02-10 15:20', description: 'Successful Login' },
@@ -72,14 +74,13 @@ let rolesData = [];
 let officesData = [];
 
 // ===== PAYSLIP STATE =====
-let payslipsData = samplePayslips.map(p => ({ ...p }));
+let payslipsData = [];
 let archivedPayslips = [];
 let payslipPage = 1;
 let payslipArchivePage = 1;
 let payslipSearchQuery = '';
 let selectedPayslip = null;
 let selectedArchivedPayslip = null;
-let nextPayslipId = samplePayslips.length + 1;
 let selectedPayslipIds = new Set();
 let selectedArchivedPayslipIds = new Set();
 
@@ -137,6 +138,29 @@ function normalizeAuditLog(log) {
     timestampRaw: log.created_at || log.timestamp || '',
     timestamp: formatDateTime(log.created_at || log.timestamp),
     description: log.description || log.action || '',
+  };
+}
+
+function monthFromPayDate(dateStr) {
+  if (!dateStr) return '';
+  const normalized = String(dateStr).slice(0, 10);
+  const d = new Date(normalized + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', { month: 'long' });
+}
+
+function normalizePayslip(p) {
+  const user = p.user || {};
+  const payDate = String(p.payroll_date || p.payrollDate || '').slice(0, 10);
+
+  return {
+    id: p.id,
+    empId: user.employee_id || '',
+    firstName: user.first_name || '',
+    middleName: user.middle_name || '',
+    lastName: user.last_name || '',
+    month: monthFromPayDate(payDate),
+    payDate,
   };
 }
 
@@ -201,6 +225,18 @@ async function loadAuditFromApi() {
   renderAudit();
 }
 
+async function loadPayslipsFromApi() {
+  const res = await dataSource.payslips.list({ per_page: 200 });
+  payslipsData = (res.data || []).map(normalizePayslip);
+  renderPayslips();
+}
+
+async function loadArchivedPayslipsFromApi() {
+  const res = await dataSource.payslips.list({ per_page: 200, only_archived: 1 });
+  archivedPayslips = (res.data || []).map(normalizePayslip);
+  renderArchivedPayslips();
+}
+
 Object.defineProperties(window, {
   currentPage: {
     get: () => currentPage,
@@ -235,8 +271,8 @@ Object.defineProperties(window, {
 function getPageTitle(pageId) {
   const titles = {
     profilePage: 'LRA Profile',
-    userManagementPage: 'LRA User Management',
-    payslipManagementPage: 'LRA Payslip Management',
+    userManagementPage: 'LRA Users',
+    payslipManagementPage: 'LRA Payslips',
     auditLogsPage: 'LRA Activity Logs',
   };
 
@@ -1860,10 +1896,10 @@ function openImportModal() {
 function handleImportFileSelect(input) {
   const file = input.files[0];
   if (!file) return;
-  const allowed = ['.xlsx', '.xls'];
+  const allowed = ['.xlsx', '.xls', '.csv'];
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   if (!allowed.includes(ext)) {
-    showToast('Invalid file type. Please select an .xlsx or .xls file.', 'error');
+    showToast('Invalid file type. Please select an .xlsx, .xls, or .csv file.', 'error');
     input.value = '';
     document.getElementById('importFileName').textContent = '';
     return;
@@ -1877,8 +1913,8 @@ function handleImportDrop(event) {
   const file = event.dataTransfer.files[0];
   if (!file) return;
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-  if (!['.xlsx', '.xls'].includes(ext)) {
-    showToast('Invalid file type. Please drop an .xlsx or .xls file.', 'error');
+  if (!['.xlsx', '.xls', '.csv'].includes(ext)) {
+    showToast('Invalid file type. Please drop an .xlsx, .xls, or .csv file.', 'error');
     return;
   }
   document.getElementById('importFileName').textContent = `📎 ${file.name}`;
@@ -1888,14 +1924,30 @@ function handleImportDrop(event) {
   document.getElementById('importFileInput').files = dt.files;
 }
 
-function confirmImport() {
+async function confirmImport() {
   const input = document.getElementById('importFileInput');
   if (!input.files || !input.files[0]) {
     showToast('Please select a file to import.', 'error');
     return;
   }
-  closeModal('importPayslipModal');
-  showToast('Payslip data imported successfully!', 'success');
+
+  const file = input.files[0];
+
+  try {
+    const res = await dataSource.payslips.import(file);
+    closeModal('importPayslipModal');
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+
+    const created = Number(res?.created || 0);
+    const restored = Number(res?.restored || 0);
+    const skipped = Number(res?.skipped || 0);
+    const errors = Array.isArray(res?.errors) ? res.errors : [];
+
+    const message = `Import complete: ${created} created, ${restored} restored, ${skipped} skipped${errors.length ? `, ${errors.length} errors` : ''}.`;
+    showToast(message, errors.length ? 'info' : 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to import payslips.', 'error');
+  }
 }
 
 // ===== PRINT PAYSLIP =====
@@ -2086,7 +2138,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (document.getElementById('payslipTableBody')) {
-    renderPayslips();
+    try {
+      await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    } catch (e) {
+      showToast(e.message || 'Failed to load payslips from server.', 'error');
+      renderPayslips();
+      renderArchivedPayslips();
+    }
   }
 
   const activePage = document.querySelector('.page.active')?.id;
