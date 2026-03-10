@@ -34,8 +34,9 @@ class UserSeeder extends Seeder
                 'first_name' => 'Alice',
                 'middle_name' => null,
                 'last_name' => 'Cruz',
+                'designation' => 'System Administrator',
                 'username' => 'alice.cruz',
-                'email' => 'alice@example.com',
+                'email' => 'alice@lra.gov.ph',
                 'office_id' => $hq->id,
                 'role_id' => $systemAdminRole->id,
             ],
@@ -44,8 +45,9 @@ class UserSeeder extends Seeder
                 'first_name' => 'Brian',
                 'middle_name' => 'T',
                 'last_name' => 'Lopez',
+                'designation' => 'Administrative Officer',
                 'username' => 'brian.lopez',
-                'email' => 'brian@example.com',
+                'email' => 'brian@lra.gov.ph',
                 'office_id' => $hq->id,
                 'role_id' => $adminRole->id,
             ],
@@ -54,8 +56,9 @@ class UserSeeder extends Seeder
                 'first_name' => 'Carla',
                 'middle_name' => null,
                 'last_name' => 'Reyes',
+                'designation' => 'Records Officer',
                 'username' => 'carla.reyes',
-                'email' => 'carla@example.com',
+                'email' => 'carla@lra.gov.ph',
                 'office_id' => $north->id,
                 'role_id' => $userRole->id,
             ],
@@ -64,8 +67,9 @@ class UserSeeder extends Seeder
                 'first_name' => 'Daniel',
                 'middle_name' => null,
                 'last_name' => 'Santos',
+                'designation' => 'Field Staff',
                 'username' => 'daniel.santos',
-                'email' => 'daniel@example.com',
+                'email' => 'daniel@lra.gov.ph',
                 'office_id' => $south->id,
                 'role_id' => $userRole->id,
             ],
@@ -81,7 +85,7 @@ class UserSeeder extends Seeder
             );
         }
 
-        $carla = User::query()->where('email', 'carla@example.com')->first();
+        $carla = User::query()->where('email', 'carla@lra.gov.ph')->first();
         $viewLogsPermission = Permission::query()->where('slug', 'view_activity_logs')->first();
 
         if ($carla && $viewLogsPermission) {
