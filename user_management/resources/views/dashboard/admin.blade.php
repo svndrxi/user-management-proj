@@ -56,7 +56,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/>
           </svg>
-          <span class="nav-label">User Management</span>
+          <span class="nav-label">Users</span>
         </div>
         <div class="nav-item" data-page="payslipManagementPage" data-label="Payslip Management" onclick="navigate('payslipManagementPage')">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -127,7 +127,7 @@
 
         <!-- ── MAIN USER LIST ── -->
         <div id="userManagementMain">
-          <h1 class="page-title">User Management</h1>
+          <h1 class="page-title">Users</h1>
           <div class="toolbar">
             <div class="search-box">
               <input type="text" id="userSearch" placeholder="Enter Name or Employee ID..."
@@ -304,17 +304,17 @@
                 <button class="btn-bulk-clear" onclick="clearPayslipSelection()">Clear</button>
                 <button class="btn-bulk-archive" onclick="bulkArchiveSelectedPayslips()">Archive</button>
               </div>
-              <button class="btn-archive-list" onclick="openPayslipArchiveList()">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                </svg>
-                Archive List
-              </button>
               <button class="btn-import" onclick="openImportModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                 </svg>
                 Import
+              </button>
+               <button class="btn-archive-list" onclick="openPayslipArchiveList()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                </svg>
+                Archive List
               </button>
             </div>
           </div>
