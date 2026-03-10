@@ -1031,6 +1031,16 @@ function validateEmailField(fieldId) {
   }
 
   const lower = value.toLowerCase();
+  // Allow editing seeded/legacy users without forcing an email change first.
+  if (
+    fieldId === 'editEmail' &&
+    selectedUser &&
+    lower === String(selectedUser.email || '').trim().toLowerCase()
+  ) {
+    setFieldError(fieldId, '');
+    return true;
+  }
+
   if (!lower.endsWith(`@${REQUIRED_EMAIL_DOMAIN}`)) {
     setFieldError(fieldId, `Email should use @${REQUIRED_EMAIL_DOMAIN} only.`);
     return false;
