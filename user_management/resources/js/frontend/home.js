@@ -16,6 +16,14 @@ const sampleUsers = [
   { id: 12, empId: '1234-2233', firstName: 'Josephine', middleName: 'Dela', lastName: 'Pena', email: 'josephine.pena@lra.gov.ph', username: 'j.pena55', role: 'User', status: 'Active', designation: 'Clerk II', office: 'Records Management Division', createdAt: '2025-05-10 08:00', updatedAt: '2025-12-01 09:00' },
 ];
 
+// ===== SAMPLE PAYSLIP DATA =====
+const samplePayslips = [
+  { id: 1, empId: '1234-5678', firstName: 'Juan', middleName: 'Cale', lastName: 'Dela Cruz', month: 'January', payDate: '2026-01-15' },
+  { id: 2, empId: '1234-8675', firstName: 'Maria', middleName: 'Santos', lastName: 'Reyes', month: 'February', payDate: '2026-02-15' },
+  { id: 3, empId: '1234-7365', firstName: 'Carlos', middleName: 'Lopez', lastName: 'Santos', month: 'March', payDate: '2026-03-15' },
+  { id: 4, empId: '1234-9845', firstName: 'Ana', middleName: 'Cruz', lastName: 'Mendoza', month: 'April', payDate: '2026-04-15' },
+];
+
 const sampleAuditLogs = [
   { empId: '1234-5678', name: 'Juan C. Dela Cruz', role: 'Admin', timestamp: '2026-02-10 15:20', description: 'Successful Login' },
   { empId: '1234-8675', name: 'Maria S. Reyes', role: 'User', timestamp: '2026-02-11 17:20', description: 'Edit Profile' },
@@ -62,6 +70,16 @@ let archiveSortOrder = 'asc';
 let archiveFilterRole = 'all';
 let rolesData = [];
 let officesData = [];
+
+// ===== PAYSLIP STATE =====
+let payslipsData = samplePayslips.map(p => ({ ...p }));
+let archivedPayslips = [];
+let payslipPage = 1;
+let payslipArchivePage = 1;
+let payslipSearchQuery = '';
+let selectedPayslip = null;
+let selectedArchivedPayslip = null;
+let nextPayslipId = samplePayslips.length + 1;
 
 function parseDateTime(value) {
   if (!value) return null;
@@ -194,9 +212,21 @@ Object.defineProperties(window, {
     get: () => auditPage,
     set: (value) => { auditPage = Number(value) || 1; },
   },
+  payslipPage: {
+    get: () => payslipPage,
+    set: (value) => { payslipPage = Number(value) || 1; },
+  },
+  payslipArchivePage: {
+    get: () => payslipArchivePage,
+    set: (value) => { payslipArchivePage = Number(value) || 1; },
+  },
   searchQuery: {
     get: () => searchQuery,
     set: (value) => { searchQuery = String(value ?? ''); },
+  },
+  payslipSearchQuery: {
+    get: () => payslipSearchQuery,
+    set: (value) => { payslipSearchQuery = String(value ?? ''); },
   },
 });
 
@@ -204,6 +234,7 @@ function getPageTitle(pageId) {
   const titles = {
     profilePage: 'LRA Profile',
     userManagementPage: 'LRA User Management',
+    payslipManagementPage: 'LRA Payslip Management',
     auditLogsPage: 'LRA Activity Logs',
   };
 
@@ -234,6 +265,11 @@ function navigate(pageId) {
   if (pageId === 'userManagementPage') {
     document.getElementById('archiveListPanel').style.display = 'none';
     document.getElementById('userManagementMain').style.display = 'block';
+  }
+  // Always reset Payslip Management back to main list when navigating
+  if (pageId === 'payslipManagementPage') {
+    document.getElementById('payslipArchivePanel').style.display = 'none';
+    document.getElementById('payslipManagementMain').style.display = 'block';
   }
 }
 
@@ -1412,10 +1448,415 @@ function showToast(msg, type = 'info') {
   setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.4s'; setTimeout(() => toast.remove(), 400); }, 2800);
 }
 
+// ===== PAYSLIP FUNCTIONS =====
+
+function openPayslipArchiveList() {
+  document.getElementById('payslipManagementMain').style.display = 'none';
+  document.getElementById('payslipArchivePanel').style.display = 'block';
+  payslipArchivePage = 1;
+  renderArchivedPayslips();
+}
+
+function closePayslipArchiveList() {
+  document.getElementById('payslipArchivePanel').style.display = 'none';
+  document.getElementById('payslipManagementMain').style.display = 'block';
+}
+
+function formatPayDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function getFilteredPayslips() {
+  let data = [...payslipsData];
+  const q = (document.getElementById('payslipSearch')?.value || payslipSearchQuery).toLowerCase();
+  if (q) {
+    data = data.filter(p =>
+      p.empId.toLowerCase().includes(q) ||
+      `${p.firstName} ${p.middleName} ${p.lastName}`.toLowerCase().includes(q)
+    );
+  }
+  return data;
+}
+
+function renderPayslips() {
+  const data = getFilteredPayslips();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (payslipPage > totalPages) payslipPage = totalPages;
+  const pageData = data.slice((payslipPage - 1) * ROWS_PER_PAGE, payslipPage * ROWS_PER_PAGE);
+  const tbody = document.getElementById('payslipTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  pageData.forEach(p => {
+    const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.empId}</td>
+      <td>${displayName}</td>
+      <td>${p.month}</td>
+      <td>${formatPayDate(p.payDate)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-edit" onclick="openEditPayslipModal(${p.id})" title="Edit">
+            ${iconEdit}
+          </button>
+          <button class="btn-print" onclick="printPayslip(${p.id})" title="Print Payslip">
+            ${iconPrint}
+          </button>
+          <button class="btn-archive" onclick="openArchivePayslipModal(${p.id})" title="Archive">
+            ${iconArchive}
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const emptyCount = ROWS_PER_PAGE - pageData.length;
+  for (let i = 0; i < emptyCount; i++) {
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = '<td colspan="5"></td>';
+    tbody.appendChild(tr);
+  }
+
+  renderPagination('payslipPagination', totalPages, payslipPage, (p) => { payslipPage = p; renderPayslips(); });
+}
+
+function getFilteredArchivedPayslips() {
+  let data = [...archivedPayslips];
+  const q = (document.getElementById('payslipArchiveSearch')?.value || '').toLowerCase();
+  if (q) {
+    data = data.filter(p =>
+      p.empId.toLowerCase().includes(q) ||
+      `${p.firstName} ${p.middleName} ${p.lastName}`.toLowerCase().includes(q)
+    );
+  }
+  return data;
+}
+
+function renderArchivedPayslips() {
+  const data = getFilteredArchivedPayslips();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (payslipArchivePage > totalPages) payslipArchivePage = totalPages;
+  const pageData = data.slice((payslipArchivePage - 1) * ROWS_PER_PAGE, payslipArchivePage * ROWS_PER_PAGE);
+  const tbody = document.getElementById('payslipArchiveTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  pageData.forEach(p => {
+    const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.empId}</td>
+      <td>${displayName}</td>
+      <td>${p.month}</td>
+      <td>${formatPayDate(p.payDate)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-unarchive" onclick="openUnarchivePayslipModal(${p.id})">Unarchive</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const emptyCount = ROWS_PER_PAGE - pageData.length;
+  for (let i = 0; i < emptyCount; i++) {
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = '<td colspan="5"></td>';
+    tbody.appendChild(tr);
+  }
+
+  renderPagination('payslipArchivePagination', totalPages, payslipArchivePage, (p) => { payslipArchivePage = p; renderArchivedPayslips(); });
+}
+
+// ===== EDIT PAYSLIP MODAL =====
+function openEditPayslipModal(payslipId) {
+  const p = payslipsData.find(ps => ps.id === payslipId);
+  if (!p) return;
+  selectedPayslip = p;
+  document.getElementById('editPayslipFirstName').value = p.firstName;
+  document.getElementById('editPayslipMiddleName').value = p.middleName || '';
+  document.getElementById('editPayslipLastName').value = p.lastName;
+  document.getElementById('editPayslipEmpId').value = p.empId;
+  document.getElementById('editPayslipMonth').value = p.month;
+  document.getElementById('editPayslipDate').value = p.payDate || '';
+  openModal('editPayslipModal');
+}
+
+function saveEditPayslip() {
+  if (!selectedPayslip) return;
+  const firstName = document.getElementById('editPayslipFirstName').value.trim();
+  const middleName = document.getElementById('editPayslipMiddleName').value.trim();
+  const lastName = document.getElementById('editPayslipLastName').value.trim();
+  const empId = document.getElementById('editPayslipEmpId').value.trim();
+  const month = document.getElementById('editPayslipMonth').value;
+  const payDate = document.getElementById('editPayslipDate').value;
+
+  if (!firstName || !lastName || !empId || !month) {
+    showToast('Please fill in all required fields.', 'error');
+    return;
+  }
+
+  const idx = payslipsData.findIndex(ps => ps.id === selectedPayslip.id);
+  if (idx !== -1) {
+    payslipsData[idx] = { ...payslipsData[idx], firstName, middleName, lastName, empId, month, payDate };
+  }
+  closeModal('editPayslipModal');
+  renderPayslips();
+  showToast('Payslip updated successfully.', 'success');
+  selectedPayslip = null;
+}
+
+// ===== ARCHIVE PAYSLIP =====
+function openArchivePayslipModal(payslipId) {
+  selectedPayslip = payslipsData.find(ps => ps.id === payslipId);
+  if (!selectedPayslip) return;
+  document.getElementById('archivePayslipName').textContent =
+    `${selectedPayslip.firstName} ${selectedPayslip.lastName} (${selectedPayslip.month})`;
+  openModal('archivePayslipModal');
+}
+
+function confirmArchivePayslip() {
+  if (!selectedPayslip) return;
+  archivedPayslips.unshift({ ...selectedPayslip });
+  payslipsData = payslipsData.filter(ps => ps.id !== selectedPayslip.id);
+  closeModal('archivePayslipModal');
+  renderPayslips();
+  renderArchivedPayslips();
+  showToast('Payslip archived successfully.', 'info');
+  selectedPayslip = null;
+}
+
+// ===== UNARCHIVE PAYSLIP =====
+function openUnarchivePayslipModal(payslipId) {
+  selectedArchivedPayslip = archivedPayslips.find(ps => ps.id === payslipId);
+  if (!selectedArchivedPayslip) return;
+  document.getElementById('unarchivePayslipName').textContent =
+    `${selectedArchivedPayslip.firstName} ${selectedArchivedPayslip.lastName} (${selectedArchivedPayslip.month})`;
+  openModal('unarchivePayslipModal');
+}
+
+function confirmUnarchivePayslip() {
+  if (!selectedArchivedPayslip) return;
+  payslipsData.unshift({ ...selectedArchivedPayslip });
+  archivedPayslips = archivedPayslips.filter(ps => ps.id !== selectedArchivedPayslip.id);
+  closeModal('unarchivePayslipModal');
+  renderArchivedPayslips();
+  renderPayslips();
+  showToast('Payslip unarchived successfully.', 'success');
+  selectedArchivedPayslip = null;
+}
+
+// ===== IMPORT PAYSLIP =====
+function openImportModal() {
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importFileName').textContent = '';
+  document.getElementById('importDropArea').classList.remove('drag-over');
+  openModal('importPayslipModal');
+}
+
+function handleImportFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const allowed = ['.xlsx', '.xls'];
+  const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  if (!allowed.includes(ext)) {
+    showToast('Invalid file type. Please select an .xlsx or .xls file.', 'error');
+    input.value = '';
+    document.getElementById('importFileName').textContent = '';
+    return;
+  }
+  document.getElementById('importFileName').textContent = `📎 ${file.name}`;
+}
+
+function handleImportDrop(event) {
+  event.preventDefault();
+  document.getElementById('importDropArea').classList.remove('drag-over');
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  if (!['.xlsx', '.xls'].includes(ext)) {
+    showToast('Invalid file type. Please drop an .xlsx or .xls file.', 'error');
+    return;
+  }
+  document.getElementById('importFileName').textContent = `📎 ${file.name}`;
+  // Transfer the file into the file input for reference
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById('importFileInput').files = dt.files;
+}
+
+function confirmImport() {
+  const input = document.getElementById('importFileInput');
+  if (!input.files || !input.files[0]) {
+    showToast('Please select a file to import.', 'error');
+    return;
+  }
+  closeModal('importPayslipModal');
+  showToast('Payslip data imported successfully!', 'success');
+}
+
+// ===== PRINT PAYSLIP =====
+function printPayslip(payslipId) {
+  const p = payslipsData.find(ps => ps.id === payslipId);
+  if (!p) return;
+
+  const fullName = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ');
+  const payDateFormatted = formatPayDate(p.payDate);
+  const logoUrl = document.getElementById('lraLogoUrl')?.dataset?.url || '';
+
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="LRA Logo" style="width:68px;height:68px;object-fit:contain;display:block;" />`
+    : `<div style="width:68px;height:68px;background:#0a1f6e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;text-align:center;">LRA</div>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Payroll Slip - ${fullName}</title>
+  <style>
+    @media print {
+      body { margin: 0; }
+      @page { margin: 1.2cm; size: A4; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;margin:0;padding:0;background:#ffffff;">
+  <div style="max-width:700px;margin:0 auto;padding:36px 40px;">
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
+      <tr>
+        <td style="width:55%;vertical-align:middle;">
+          <table style="border-collapse:collapse;">
+            <tr>
+              <td style="vertical-align:middle;padding-right:12px;">${logoHtml}</td>
+              <td style="vertical-align:middle;">
+                <div style="font-size:16px;font-weight:700;color:#0a1f6e;line-height:1.2;margin-bottom:4px;">Land Registration Authority</div>
+                <div style="font-size:11px;color:#555555;line-height:1.5;">East Avenue cor. NIA Road, Diliman,<br>Quezon City, 1101 Metro Manila</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td style="width:45%;text-align:right;vertical-align:top;color:#555555;font-size:11.5px;line-height:1.7;">
+          <div>Address</div>
+          <div>your@email.com</div>
+          <div>222 555 7777</div>
+        </td>
+      </tr>
+    </table>
+
+    <hr style="border:none;border-top:1px solid #cccccc;margin-bottom:22px;" />
+
+    <h1 style="text-align:center;font-size:22px;font-weight:700;color:#111111;margin:0 0 8px 0;">Payroll Slip</h1>
+    <p style="text-align:center;font-size:13px;color:#333333;margin:0 0 26px 0;">
+      <strong>Pay Period:</strong> ${p.month} 1 - 15, ${new Date(p.payDate + 'T00:00:00').getFullYear() || 2026};
+      <strong>Pay Date:</strong> ${payDateFormatted}
+    </p>
+
+    <p style="font-size:13px;margin:0 0 6px 0;"><strong>Employee Name:</strong> ${fullName}</p>
+    <p style="font-size:13px;margin:0 0 24px 0;"><strong>Employee ID:</strong> ${p.empId}</p>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <thead>
+        <tr>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:34%;">Earnings</th>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Details</th>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Base Salary</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Overtime Pay</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;">Gross Salary</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">&nbsp;</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <thead>
+        <tr>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:34%;">Deductions</th>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Details</th>
+          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Taxes</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Late Penalties</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Insurances</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Absences</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;">Total Deductions</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">&nbsp;</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
+      <tbody>
+        <tr>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;width:67%;">Net Pay</td>
+          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;width:33%;"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:12px;color:#666666;margin:0;">For inquiries, please feel free to contact [Your Name] at [Your Email].</p>
+
+  </div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+  const printWin = window.open('', '_blank', 'width=850,height=750');
+  if (!printWin) {
+    showToast('Please allow popups to print the payslip.', 'error');
+    return;
+  }
+  printWin.document.write(html);
+  printWin.document.close();
+}
+
 // ===== SVG ICONS =====
 const iconEye = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
 const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
 const iconArchive = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
+const iconPrint = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`;
 
 // ===== CLOSE DROPDOWN ON OUTSIDE CLICK =====
 document.addEventListener('click', (e) => {
@@ -1446,6 +1887,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast(e.message || 'Failed to load activity logs from server.', 'error');
       renderAudit();
     }
+  }
+
+  if (document.getElementById('payslipTableBody')) {
+    renderPayslips();
   }
 
   const activePage = document.querySelector('.page.active')?.id;
@@ -1509,4 +1954,19 @@ Object.assign(window, {
   saveEditUser,
   generatePassword,
   closeModal,
+  openPayslipArchiveList,
+  closePayslipArchiveList,
+  renderPayslips,
+  renderArchivedPayslips,
+  openEditPayslipModal,
+  saveEditPayslip,
+  openArchivePayslipModal,
+  confirmArchivePayslip,
+  openUnarchivePayslipModal,
+  confirmUnarchivePayslip,
+  openImportModal,
+  handleImportFileSelect,
+  handleImportDrop,
+  confirmImport,
+  printPayslip,
 });

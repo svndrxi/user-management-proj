@@ -619,6 +619,73 @@ ul { list-style: none; }
 .badge-status-active { background: #dcfce7; color: #16a34a; }
 .badge-status-inactive { background: #f3f4f6; color: #6b7280; }
 
+/* ===== PAYSLIP MANAGEMENT ===== */
+.btn-print {
+    padding: 5px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), transform var(--transition);
+    color: #15803d;
+}
+.btn-print:hover { background: #dcfce7; transform: scale(1.1); }
+.btn-print svg { width: 18px; height: 18px; }
+
+.btn-import {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    background: var(--gold);
+    color: var(--navy-dark);
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: var(--radius);
+    transition: background var(--transition), box-shadow var(--transition);
+    box-shadow: 0 2px 6px rgba(245,197,24,0.3);
+}
+.btn-import:hover { background: var(--gold-hover); box-shadow: 0 4px 12px rgba(245,197,24,0.4); }
+.btn-import svg { width: 18px; height: 18px; }
+
+#payslipArchivePanel { display: none; }
+
+.import-drop-area {
+    border: 2px dashed var(--gray-mid);
+    border-radius: var(--radius-lg);
+    padding: 32px 20px;
+    text-align: center;
+    background: #f9faff;
+    transition: border-color var(--transition), background var(--transition);
+    cursor: pointer;
+}
+.import-drop-area:hover, .import-drop-area.drag-over {
+    border-color: var(--navy-light);
+    background: #eef1ff;
+}
+.import-drop-area svg { width: 44px; height: 44px; color: var(--navy-light); margin-bottom: 12px; }
+.import-drop-text { font-size: 14px; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
+.import-drop-sub { font-size: 12.5px; color: var(--gray-text); margin-bottom: 14px; }
+.btn-browse-file {
+    display: inline-block;
+    padding: 8px 18px;
+    background: var(--navy);
+    color: var(--white);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background var(--transition);
+}
+.btn-browse-file:hover { background: var(--navy-light); }
+.import-filename {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--navy);
+    font-weight: 600;
+    min-height: 20px;
+}
+
 @media (max-width: 768px) {
     .sidebar { width: var(--sidebar-collapsed-width); }
     .nav-label { display: none; }
