@@ -590,6 +590,9 @@ function renderUsers() {
           <button class="btn-archive" onclick="openArchiveModal(${u.id})" title="Archive">
             ${iconArchive}
           </button>
+          <button class="btn-delete" onclick="openDeleteUserModal(${u.id})" title="Delete">
+            ${iconTrash}
+          </button>
         </div>
       </td>
     `;
@@ -889,6 +892,22 @@ async function confirmArchive() {
   } catch (e) {
     showToast(e.message || 'Failed to archive user.', 'error');
   }
+}
+
+// ===== DELETE USER =====
+let userToDelete = null;
+
+function openDeleteUserModal(userId) {
+  userToDelete = usersData.find(u => u.id === userId);
+  if (!userToDelete) return;
+  document.getElementById('deleteUserName').textContent = `${userToDelete.firstName} ${userToDelete.lastName}`;
+  openModal('deleteUserModal');
+}
+
+function confirmDeleteUser() {
+  // Backend implementation pending
+  closeModal('deleteUserModal');
+  userToDelete = null;
 }
 
 function formatPersonName(value, trimEdges = true) {
@@ -1562,6 +1581,9 @@ function renderPayslips() {
           <button class="btn-archive" onclick="openArchivePayslipModal(${p.id})" title="Archive">
             ${iconArchive}
           </button>
+          <button class="btn-delete" onclick="openDeletePayslipModal(${p.id})" title="Delete">
+            ${iconTrash}
+          </button>
         </div>
       </td>
     `;
@@ -1702,6 +1724,23 @@ async function confirmArchivePayslip() {
   } catch (e) {
     showToast(e.message || 'Failed to archive payslip.', 'error');
   }
+}
+
+// ===== DELETE PAYSLIP =====
+let payslipToDelete = null;
+
+function openDeletePayslipModal(payslipId) {
+  payslipToDelete = payslipsData.find(ps => ps.id === payslipId);
+  if (!payslipToDelete) return;
+  document.getElementById('deletePayslipName').textContent =
+    `${payslipToDelete.firstName} ${payslipToDelete.lastName}`;
+  openModal('deletePayslipModal');
+}
+
+function confirmDeletePayslip() {
+  // Backend implementation pending
+  closeModal('deletePayslipModal');
+  payslipToDelete = null;
 }
 
 // ===== UNARCHIVE PAYSLIP =====
@@ -2080,6 +2119,7 @@ const iconEye = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 
 const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
 const iconArchive = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
 const iconPrint = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`;
+const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
 
 // ===== CLOSE DROPDOWN ON OUTSIDE CLICK =====
 document.addEventListener('click', (e) => {
@@ -2182,6 +2222,8 @@ Object.assign(window, {
   openInfoModal,
   openArchiveModal,
   confirmArchive,
+  openDeleteUserModal,
+  confirmDeleteUser,
   openUnarchiveModal,
   confirmUnarchive,
   unarchiveUser,
@@ -2197,6 +2239,8 @@ Object.assign(window, {
   saveEditPayslip,
   openArchivePayslipModal,
   confirmArchivePayslip,
+  openDeletePayslipModal,
+  confirmDeletePayslip,
   openUnarchivePayslipModal,
   confirmUnarchivePayslip,
   openImportModal,
