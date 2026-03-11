@@ -57,7 +57,7 @@ class PayslipApiController extends Controller
         ]);
 
         $payslip->load(['user']);
-        ActivityLog::record('created_payslip', 'Payslip Management', "Created payslip #{$payslip->id}");
+        ActivityLog::record('created_payslip', 'Payslip Management', "Created payslip for {$payslip->user->employee_id}");
 
         return response()->json($payslip, 201);
     }
@@ -82,30 +82,30 @@ class PayslipApiController extends Controller
         ]);
 
         $payslip->load(['user']);
-        ActivityLog::record('updated_payslip', 'Payslip Management', "Updated payslip #{$payslip->id}");
+        ActivityLog::record('updated_payslip', 'Payslip Management', "Updated payslip for {$payslip->user->employee_id}");
 
         return response()->json($payslip);
     }
 
     public function destroy(Payslip $payslip): JsonResponse
     {
-        $id = $payslip->id;
+        $emp_id = $payslip->user->employee_id;
         $payslip->update(['is_archived' => true]);
-        ActivityLog::record('archived_payslip', 'Payslip Management', "Archived payslip #{$id}");
+        ActivityLog::record('archived_payslip', 'Payslip Management', "Archived payslip for {$emp_id}");
 
         return response()->json(['message' => 'Payslip archived successfully.']);
     }
 
     public function unarchive(Payslip $payslip): JsonResponse
     {
-        $id = $payslip->id;
+        $emp_id = $payslip->user->employee_id;
 
         if ($payslip->trashed()) {
             $payslip->restore();
         }
 
         $payslip->update(['is_archived' => false]);
-        ActivityLog::record('unarchived_payslip', 'Payslip Management', "Unarchived payslip #{$id}");
+        ActivityLog::record('unarchived_payslip', 'Payslip Management', "Unarchived payslip for {$emp_id}");
 
         return response()->json(['message' => 'Payslip unarchived successfully.']);
     }
