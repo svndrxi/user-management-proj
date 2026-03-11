@@ -421,6 +421,18 @@ ul { list-style: none; }
 .btn-archive:hover { background: #ede9fe; transform: scale(1.1); }
 .btn-archive svg  { width: 18px; height: 18px; }
 
+.btn-delete {
+    padding: 5px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition), transform var(--transition);
+    color: #dc2626;
+}
+.btn-delete:hover { background: #fee2e2; transform: scale(1.1); }
+.btn-delete svg  { width: 18px; height: 18px; }
+
 .btn-unarchive {
     padding: 6px 10px;
     border-radius: 6px;
@@ -495,6 +507,19 @@ ul { list-style: none; }
     transition: background var(--transition);
 }
 .btn-confirm-unarchive:hover { background: #15803d; }
+
+.delete-icon { color: #dc2626; margin: 0 auto 12px; width: 52px; height: 52px; }
+.delete-icon svg { width: 52px; height: 52px; }
+.btn-confirm-delete {
+    padding: 9px 22px;
+    background: #dc2626;
+    color: var(--white);
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: var(--radius);
+    transition: background var(--transition);
+}
+.btn-confirm-delete:hover { background: #b91c1c; }
 
 .btn-login { width: 100%; padding: 13px; background: var(--navy); color: var(--white); font-size: 15px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 0.03em; margin-top: 4px; transition: background 0.2s, box-shadow 0.2s; font-family: inherit; }
 .btn-login:hover { background: var(--navy-light); box-shadow: 0 4px 16px rgba(10,31,110,0.35); }
