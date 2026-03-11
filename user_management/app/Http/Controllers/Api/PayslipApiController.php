@@ -23,13 +23,9 @@ class PayslipApiController extends Controller
             ->latest('payroll_date');
 
         if ($request->boolean('only_archived')) {
-            $query
-                ->withTrashed()
-                ->where(function ($q) {
-                    $q->where('is_archived', true)->orWhereNotNull('deleted_at');
-                });
+            $query->where('is_archived', true);
         } elseif ($request->boolean('include_archived')) {
-            $query->withTrashed();
+            // include both active + archived (but still exclude soft-deleted)
         } else {
             $query->where('is_archived', false);
         }
@@ -89,7 +85,8 @@ class PayslipApiController extends Controller
 
     public function destroy(Payslip $payslip): JsonResponse
     {
-        $emp_id = $payslip->user->employee_id;
+        $payslip->loadMissing(['user']);
+        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
         $payslip->update(['is_archived' => true]);
         ActivityLog::record('archived_payslip', 'Payslip Management', "Archived payslip for {$emp_id}");
 
@@ -98,16 +95,31 @@ class PayslipApiController extends Controller
 
     public function unarchive(Payslip $payslip): JsonResponse
     {
-        $emp_id = $payslip->user->employee_id;
+        $payslip->loadMissing(['user']);
+        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
 
         if ($payslip->trashed()) {
-            $payslip->restore();
+            return response()->json([
+                'message' => 'Cannot unarchive a deleted payslip.',
+            ], 422);
         }
 
         $payslip->update(['is_archived' => false]);
         ActivityLog::record('unarchived_payslip', 'Payslip Management', "Unarchived payslip for {$emp_id}");
 
         return response()->json(['message' => 'Payslip unarchived successfully.']);
+    }
+
+    public function softDelete(Payslip $payslip): JsonResponse
+    {
+        $payslip->loadMissing(['user']);
+        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
+
+        $payslip->delete();
+
+        ActivityLog::record('deleted_payslip', 'Payslip Management', "Soft-deleted payslip for {$emp_id}");
+
+        return response()->json(['message' => 'Payslip deleted successfully.']);
     }
 
     public function import(Request $request): JsonResponse

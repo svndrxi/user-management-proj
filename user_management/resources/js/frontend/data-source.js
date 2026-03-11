@@ -127,6 +127,9 @@ export const dataSource = {
     unarchive(id) {
       return request(`/users/${id}/unarchive`, { method: "POST" });
     },
+    softDelete(id) {
+      return request(`/users/${id}/soft-delete`, { method: "DELETE" });
+    },
   },
 
   roles: {
@@ -234,6 +237,9 @@ export const dataSource = {
     },
     unarchive(id) {
       return request(`/payslips/${id}/unarchive`, { method: "POST" });
+    },
+    softDelete(id) {
+      return request(`/payslips/${id}/soft-delete`, { method: "DELETE" });
     },
     import(file) {
       const form = new FormData();

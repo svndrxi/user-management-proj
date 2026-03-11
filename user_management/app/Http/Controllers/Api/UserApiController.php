@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Payslip;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,13 +22,9 @@ class UserApiController extends Controller
             ->latest();
 
         if ($request->boolean('only_archived')) {
-            $query
-                ->withTrashed()
-                ->where(function ($q) {
-                    $q->where('is_archived', true)->orWhereNotNull('deleted_at');
-                });
+            $query->where('is_archived', true);
         } elseif ($request->boolean('include_archived')) {
-            $query->withTrashed();
+            // include both active + archived (but still exclude soft-deleted)
         } else {
             $query->where('is_archived', false);
         }
@@ -138,15 +135,49 @@ class UserApiController extends Controller
 
     public function unarchive(User $user): JsonResponse
     {
-        $email = $user->email;
-
         if ($user->trashed()) {
-            $user->restore();
+            return response()->json([
+                'message' => 'Cannot unarchive a deleted user.',
+            ], 422);
         }
+
+        $email = $user->email;
 
         $user->update(['is_archived' => false]);
         ActivityLog::record('unarchived_user', 'User Management', "Unarchived user {$email}");
 
         return response()->json(['message' => 'User unarchived successfully.']);
+    }
+
+    public function softDelete(User $user): JsonResponse
+    {
+        $hasActivePayslips = Payslip::query()
+        ->where('user_id', $user->id)
+        ->where('is_archived', false)
+        ->exists();
+
+        $hasArchivedPayslips = Payslip::query()
+            ->where('user_id', $user->id)
+            ->where('is_archived', true)
+            ->exists();
+
+        if ($hasActivePayslips || $hasArchivedPayslips) {
+            $payslipLocation = $hasActivePayslips ? 'active list' : 'archive list';
+
+            return response()->json([
+                'message' => "User cannot be deleted because they have payslip records in the {$payslipLocation}.",
+                'payslip_location' => $payslipLocation,
+            ], 422);
+        }
+
+        $email = $user->email;
+
+        $user->delete();
+
+        ActivityLog::record('deleted_user', 'User Management', "Soft-deleted user {$email}");
+
+        return response()->json([
+            'message' => 'User deleted successfully.',
+        ]);
     }
 }

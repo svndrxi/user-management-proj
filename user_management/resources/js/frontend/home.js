@@ -907,10 +907,22 @@ function openDeleteUserModal(userId) {
   openModal('deleteUserModal');
 }
 
-function confirmDeleteUser() {
-  // Backend implementation pending
+async function confirmDeleteUser() {
+  if (!userToDelete) return;
+
   closeModal('deleteUserModal');
-  userToDelete = null;
+
+  try {
+    const res = await dataSource.users.softDelete(userToDelete.id);
+    selectedUserIds.delete(userToDelete.id);
+    selectedArchivedUserIds.delete(userToDelete.id);
+    userToDelete = null;
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    updateBulkActionUI();
+    showToast(res?.message || 'User deleted successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to delete user.', 'error');
+  }
 }
 
 function formatPersonName(value, trimEdges = true) {
@@ -1742,10 +1754,22 @@ function openDeletePayslipModal(payslipId) {
   openModal('deletePayslipModal');
 }
 
-function confirmDeletePayslip() {
-  // Backend implementation pending
+async function confirmDeletePayslip() {
+  if (!payslipToDelete) return;
+
   closeModal('deletePayslipModal');
-  payslipToDelete = null;
+
+  try {
+    await dataSource.payslips.softDelete(payslipToDelete.id);
+    selectedPayslipIds.delete(payslipToDelete.id);
+    selectedArchivedPayslipIds.delete(payslipToDelete.id);
+    payslipToDelete = null;
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast('Payslip deleted successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to delete payslip.', 'error');
+  }
 }
 
 // ===== UNARCHIVE PAYSLIP =====

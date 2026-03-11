@@ -14,6 +14,7 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
         return $request->user();
     });
     Route::post('users/{user}/unarchive', [UserApiController::class, 'unarchive'])->name('users.unarchive');
+    Route::delete('users/{user}/soft-delete', [UserApiController::class, 'softDelete'])->name('users.soft-delete');
     Route::apiResource('users', UserApiController::class);
     Route::apiResource('offices', OfficeApiController::class);
     Route::apiResource('roles', RoleApiController::class);
@@ -21,5 +22,6 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
     Route::apiResource('activity-logs', ActivityLogApiController::class)->only(['index', 'show', 'destroy']);
     Route::post('payslips/import', [PayslipApiController::class, 'import'])->name('payslips.import');
     Route::post('payslips/{payslip}/unarchive', [PayslipApiController::class, 'unarchive'])->name('payslips.unarchive');
+    Route::delete('payslips/{payslip}/soft-delete', [PayslipApiController::class, 'softDelete'])->name('payslips.soft-delete');
     Route::apiResource('payslips', PayslipApiController::class);
 });
