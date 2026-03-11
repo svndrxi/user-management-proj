@@ -23,9 +23,15 @@ class PayslipApiController extends Controller
             ->latest('payroll_date');
 
         if ($request->boolean('only_archived')) {
-            $query->onlyTrashed();
+            $query
+                ->withTrashed()
+                ->where(function ($q) {
+                    $q->where('is_archived', true)->orWhereNotNull('deleted_at');
+                });
         } elseif ($request->boolean('include_archived')) {
             $query->withTrashed();
+        } else {
+            $query->where('is_archived', false);
         }
 
         if ($request->filled('user_id')) {
@@ -47,6 +53,7 @@ class PayslipApiController extends Controller
         $payslip = Payslip::query()->create([
             'user_id' => (int) $validated['user_id'],
             'payroll_date' => $validated['payroll_date'],
+            'is_archived' => false,
         ]);
 
         $payslip->load(['user']);
@@ -83,10 +90,24 @@ class PayslipApiController extends Controller
     public function destroy(Payslip $payslip): JsonResponse
     {
         $id = $payslip->id;
-        $payslip->delete();
+        $payslip->update(['is_archived' => true]);
         ActivityLog::record('archived_payslip', 'Payslip Management', "Archived payslip #{$id}");
 
         return response()->json(['message' => 'Payslip archived successfully.']);
+    }
+
+    public function unarchive(Payslip $payslip): JsonResponse
+    {
+        $id = $payslip->id;
+
+        if ($payslip->trashed()) {
+            $payslip->restore();
+        }
+
+        $payslip->update(['is_archived' => false]);
+        ActivityLog::record('unarchived_payslip', 'Payslip Management', "Unarchived payslip #{$id}");
+
+        return response()->json(['message' => 'Payslip unarchived successfully.']);
     }
 
     public function import(Request $request): JsonResponse
@@ -148,6 +169,10 @@ class PayslipApiController extends Controller
                     if ($existing) {
                         if ($existing->trashed()) {
                             $existing->restore();
+                        }
+
+                        if ($existing->is_archived) {
+                            $existing->update(['is_archived' => false]);
                             $restored++;
                         } else {
                             $skipped++;
@@ -158,6 +183,7 @@ class PayslipApiController extends Controller
                     Payslip::query()->create([
                         'user_id' => $user->id,
                         'payroll_date' => $dateString,
+                        'is_archived' => false,
                     ]);
 
                     $created++;

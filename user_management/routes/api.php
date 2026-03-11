@@ -13,11 +13,13 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+    Route::post('users/{user}/unarchive', [UserApiController::class, 'unarchive'])->name('users.unarchive');
     Route::apiResource('users', UserApiController::class);
     Route::apiResource('offices', OfficeApiController::class);
     Route::apiResource('roles', RoleApiController::class);
     Route::apiResource('permissions', PermissionApiController::class)->except(['destroy']);
     Route::apiResource('activity-logs', ActivityLogApiController::class)->only(['index', 'show', 'destroy']);
     Route::post('payslips/import', [PayslipApiController::class, 'import'])->name('payslips.import');
+    Route::post('payslips/{payslip}/unarchive', [PayslipApiController::class, 'unarchive'])->name('payslips.unarchive');
     Route::apiResource('payslips', PayslipApiController::class);
 });

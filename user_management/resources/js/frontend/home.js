@@ -469,36 +469,25 @@ function bulkArchiveSelectedUsers() {
   openModal('bulkArchiveModal');
 }
 
-function confirmBulkArchive() {
+async function confirmBulkArchive() {
   if (selectedUserIds.size === 0) {
     closeModal('bulkArchiveModal');
     return;
   }
 
-  const selectedIdList = Array.from(selectedUserIds);
-  const selectedUsers = usersData.filter((u) => selectedUserIds.has(u.id));
-
-  if (selectedUsers.length === 0) {
-    selectedUserIds.clear();
-    updateBulkActionUI();
-    renderUsers();
-    return;
-  }
-
-  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  selectedUsers.forEach((u) => {
-    archivedUsers.unshift({ ...u, archivedAt: now });
-  });
-
-  usersData = usersData.filter((u) => !selectedUserIds.has(u.id));
-  selectedUserIds.clear();
-  selectedIdList.forEach((id) => selectedArchivedUserIds.delete(id));
+  const selectedIds = Array.from(selectedUserIds);
   closeModal('bulkArchiveModal');
 
-  renderUsers();
-  renderArchive();
-  updateBulkActionUI();
-  showToast(`${selectedUsers.length} user(s) archived successfully.`, 'info');
+  try {
+    await Promise.all(selectedIds.map((id) => dataSource.users.archive(id)));
+    selectedUserIds.clear();
+    selectedArchivedUserIds.clear();
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    updateBulkActionUI();
+    showToast(`${selectedIds.length} user(s) archived successfully.`, 'info');
+  } catch (e) {
+    showToast(e.message || 'Failed to archive selected users.', 'error');
+  }
 }
 
 function bulkUnarchiveSelectedUsers() {
@@ -518,33 +507,26 @@ function bulkUnarchiveSelectedUsers() {
   openModal('bulkUnarchiveModal');
 }
 
-function confirmBulkUnarchive() {
+async function confirmBulkUnarchive() {
   if (selectedArchivedUserIds.size === 0) {
     closeModal('bulkUnarchiveModal');
     return;
   }
 
-  const selectedUsers = archivedUsers.filter((u) => selectedArchivedUserIds.has(u.id));
-  if (selectedUsers.length === 0) {
-    selectedArchivedUserIds.clear();
-    updateBulkActionUI();
-    renderArchive();
-    closeModal('bulkUnarchiveModal');
-    return;
-  }
-
-  selectedUsers.forEach((u) => {
-    usersData.unshift(u);
-  });
-
-  archivedUsers = archivedUsers.filter((u) => !selectedArchivedUserIds.has(u.id));
-  selectedArchivedUserIds.clear();
   closeModal('bulkUnarchiveModal');
 
-  renderArchive();
-  renderUsers();
-  updateBulkActionUI();
-  showToast(`${selectedUsers.length} user(s) unarchived successfully.`, 'success');
+  const selectedIds = Array.from(selectedArchivedUserIds);
+
+  try {
+    await Promise.all(selectedIds.map((id) => dataSource.users.unarchive(id)));
+    selectedUserIds.clear();
+    selectedArchivedUserIds.clear();
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    updateBulkActionUI();
+    showToast(`${selectedIds.length} user(s) unarchived successfully.`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to unarchive selected users.', 'error');
+  }
 }
 
 // ===== RENDER USER TABLE =====
@@ -708,26 +690,23 @@ function openUnarchiveModal(userId) {
   openModal('unarchiveModal');
 }
 
-function confirmUnarchive() {
+async function confirmUnarchive() {
   if (!selectedArchivedUser) return;
 
   closeModal('unarchiveModal');
-  unarchiveUser(selectedArchivedUser.id);
-  selectedArchivedUser = null;
+
+  try {
+    await dataSource.users.unarchive(selectedArchivedUser.id);
+    selectedArchivedUserIds.delete(selectedArchivedUser.id);
+    selectedArchivedUser = null;
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    showToast('User unarchived successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to unarchive user.', 'error');
+  }
 }
 
-function unarchiveUser(userId) {
-  const idx = archivedUsers.findIndex(u => u.id === userId);
-  if (idx === -1) return;
-
-  const [user] = archivedUsers.splice(idx, 1);
-  usersData.unshift(user);
-  selectedArchivedUserIds.delete(userId);
-
-  renderArchive();
-  renderUsers();
-  showToast('User unarchived successfully.', 'success');
-}
+function unarchiveUser() {}
 
 // ===== RENDER AUDIT TABLE =====
 function getFilteredAudit() {
@@ -897,16 +876,18 @@ function openArchiveModal(userId) {
 
 async function confirmArchive() {
   if (!selectedUser) return;
-  // Move from active to archived
-  archivedUsers.unshift({ ...selectedUser, archivedAt: new Date().toISOString().slice(0, 16).replace('T', ' ') });
-  usersData = usersData.filter(u => u.id !== selectedUser.id);
-  selectedUserIds.delete(selectedUser.id);
-  closeModal('archiveModal');
-  renderUsers();
-  renderArchive();
-  updateBulkActionUI();
-  showToast('User archived successfully.', 'info');
-  selectedUser = null;
+
+  try {
+    await dataSource.users.archive(selectedUser.id);
+    selectedUserIds.delete(selectedUser.id);
+    closeModal('archiveModal');
+    selectedUser = null;
+    await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
+    updateBulkActionUI();
+    showToast('User archived successfully.', 'info');
+  } catch (e) {
+    showToast(e.message || 'Failed to archive user.', 'error');
+  }
 }
 
 function formatPersonName(value, trimEdges = true) {
@@ -1708,17 +1689,20 @@ function openArchivePayslipModal(payslipId) {
   openModal('archivePayslipModal');
 }
 
-function confirmArchivePayslip() {
+async function confirmArchivePayslip() {
   if (!selectedPayslip) return;
-  const archivedId = selectedPayslip.id;
-  archivedPayslips.unshift({ ...selectedPayslip });
-  payslipsData = payslipsData.filter(ps => ps.id !== selectedPayslip.id);
-  selectedPayslipIds.delete(archivedId);
-  closeModal('archivePayslipModal');
-  renderPayslips();
-  renderArchivedPayslips();
-  showToast('Payslip archived successfully.', 'info');
-  selectedPayslip = null;
+
+  try {
+    await dataSource.payslips.archive(selectedPayslip.id);
+    selectedPayslipIds.delete(selectedPayslip.id);
+    closeModal('archivePayslipModal');
+    selectedPayslip = null;
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast('Payslip archived successfully.', 'info');
+  } catch (e) {
+    showToast(e.message || 'Failed to archive payslip.', 'error');
+  }
 }
 
 // ===== UNARCHIVE PAYSLIP =====
@@ -1730,17 +1714,20 @@ function openUnarchivePayslipModal(payslipId) {
   openModal('unarchivePayslipModal');
 }
 
-function confirmUnarchivePayslip() {
+async function confirmUnarchivePayslip() {
   if (!selectedArchivedPayslip) return;
-  const unarchivedId = selectedArchivedPayslip.id;
-  payslipsData.unshift({ ...selectedArchivedPayslip });
-  archivedPayslips = archivedPayslips.filter(ps => ps.id !== selectedArchivedPayslip.id);
-  selectedArchivedPayslipIds.delete(unarchivedId);
-  closeModal('unarchivePayslipModal');
-  renderArchivedPayslips();
-  renderPayslips();
-  showToast('Payslip unarchived successfully.', 'success');
-  selectedArchivedPayslip = null;
+
+  try {
+    await dataSource.payslips.unarchive(selectedArchivedPayslip.id);
+    selectedArchivedPayslipIds.delete(selectedArchivedPayslip.id);
+    closeModal('unarchivePayslipModal');
+    selectedArchivedPayslip = null;
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast('Payslip unarchived successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to unarchive payslip.', 'error');
+  }
 }
 
 // ===== BULK PAYSLIP FUNCTIONS =====
@@ -1818,32 +1805,25 @@ function bulkArchiveSelectedPayslips() {
   openModal('bulkArchivePayslipModal');
 }
 
-function confirmBulkArchivePayslips() {
+async function confirmBulkArchivePayslips() {
   if (selectedPayslipIds.size === 0) {
     closeModal('bulkArchivePayslipModal');
     return;
   }
-  const selectedIdList = Array.from(selectedPayslipIds);
-  const selectedItems = payslipsData.filter((p) => selectedPayslipIds.has(p.id));
-  if (selectedItems.length === 0) {
-    selectedPayslipIds.clear();
-    updateBulkActionUI();
-    renderPayslips();
-    closeModal('bulkArchivePayslipModal');
-    return;
-  }
-  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  selectedItems.forEach((p) => {
-    archivedPayslips.unshift({ ...p, archivedAt: now });
-  });
-  payslipsData = payslipsData.filter((p) => !selectedPayslipIds.has(p.id));
-  selectedPayslipIds.clear();
-  selectedIdList.forEach((id) => selectedArchivedPayslipIds.delete(id));
   closeModal('bulkArchivePayslipModal');
-  renderPayslips();
-  renderArchivedPayslips();
-  updateBulkActionUI();
-  showToast(`${selectedItems.length} payslip(s) archived successfully.`, 'info');
+
+  const selectedIds = Array.from(selectedPayslipIds);
+
+  try {
+    await Promise.all(selectedIds.map((id) => dataSource.payslips.archive(id)));
+    selectedPayslipIds.clear();
+    selectedArchivedPayslipIds.clear();
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast(`${selectedIds.length} payslip(s) archived successfully.`, 'info');
+  } catch (e) {
+    showToast(e.message || 'Failed to archive selected payslips.', 'error');
+  }
 }
 
 function bulkUnarchiveSelectedPayslips() {
@@ -1860,29 +1840,25 @@ function bulkUnarchiveSelectedPayslips() {
   openModal('bulkUnarchivePayslipModal');
 }
 
-function confirmBulkUnarchivePayslips() {
+async function confirmBulkUnarchivePayslips() {
   if (selectedArchivedPayslipIds.size === 0) {
     closeModal('bulkUnarchivePayslipModal');
     return;
   }
-  const selectedItems = archivedPayslips.filter((p) => selectedArchivedPayslipIds.has(p.id));
-  if (selectedItems.length === 0) {
-    selectedArchivedPayslipIds.clear();
-    updateBulkActionUI();
-    renderArchivedPayslips();
-    closeModal('bulkUnarchivePayslipModal');
-    return;
-  }
-  selectedItems.forEach((p) => {
-    payslipsData.unshift(p);
-  });
-  archivedPayslips = archivedPayslips.filter((p) => !selectedArchivedPayslipIds.has(p.id));
-  selectedArchivedPayslipIds.clear();
   closeModal('bulkUnarchivePayslipModal');
-  renderArchivedPayslips();
-  renderPayslips();
-  updateBulkActionUI();
-  showToast(`${selectedItems.length} payslip(s) unarchived successfully.`, 'success');
+
+  const selectedIds = Array.from(selectedArchivedPayslipIds);
+
+  try {
+    await Promise.all(selectedIds.map((id) => dataSource.payslips.unarchive(id)));
+    selectedPayslipIds.clear();
+    selectedArchivedPayslipIds.clear();
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast(`${selectedIds.length} payslip(s) unarchived successfully.`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to unarchive selected payslips.', 'error');
+  }
 }
 
 // ===== IMPORT PAYSLIP =====

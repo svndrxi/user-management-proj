@@ -124,6 +124,9 @@ export const dataSource = {
     archive(id) {
       return request(`/users/${id}`, { method: "DELETE" });
     },
+    unarchive(id) {
+      return request(`/users/${id}/unarchive`, { method: "POST" });
+    },
   },
 
   roles: {
@@ -228,6 +231,9 @@ export const dataSource = {
     },
     archive(id) {
       return request(`/payslips/${id}`, { method: "DELETE" });
+    },
+    unarchive(id) {
+      return request(`/payslips/${id}/unarchive`, { method: "POST" });
     },
     import(file) {
       const form = new FormData();

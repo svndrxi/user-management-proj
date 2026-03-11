@@ -35,6 +35,7 @@ class User extends Authenticatable
         'office_id',
         'role_id',
         'is_active',
+        'is_archived',
     ];
 
     /**
@@ -58,6 +59,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'is_archived' => 'boolean',
         ];
     }
 

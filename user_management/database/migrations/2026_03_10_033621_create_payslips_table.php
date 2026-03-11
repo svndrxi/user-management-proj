@@ -22,6 +22,8 @@ return new class extends Migration
             //payroll
             $table->date('payroll_date');
 
+            $table->boolean('is_archived')->default(false);
+
             $table->softDeletes();
             $table->timestamps();
         });

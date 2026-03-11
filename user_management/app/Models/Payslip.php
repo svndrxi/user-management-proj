@@ -14,10 +14,12 @@ class Payslip extends Model
     protected $fillable = [
         'user_id',
         'payroll_date',
+        'is_archived',
     ];
 
     protected $casts = [
         'payroll_date' => 'date',
+        'is_archived' => 'boolean',
     ];
 
     public function user(): BelongsTo

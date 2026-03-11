@@ -33,6 +33,8 @@ return new class extends Migration
 
             $table->boolean('is_active')->default(true);
 
+            $table->boolean('is_archived')->default(false);
+
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes(); // adds deleted_at column

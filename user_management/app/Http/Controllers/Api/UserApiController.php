@@ -21,9 +21,15 @@ class UserApiController extends Controller
             ->latest();
 
         if ($request->boolean('only_archived')) {
-            $query->onlyTrashed();
+            $query
+                ->withTrashed()
+                ->where(function ($q) {
+                    $q->where('is_archived', true)->orWhereNotNull('deleted_at');
+                });
         } elseif ($request->boolean('include_archived')) {
             $query->withTrashed();
+        } else {
+            $query->where('is_archived', false);
         }
 
         $users = $query->paginate(max(1, min($perPage, 100)));
@@ -124,9 +130,23 @@ class UserApiController extends Controller
     public function destroy(User $user): JsonResponse
     {
         $email = $user->email;
-        $user->delete();
+        $user->update(['is_archived' => true]);
         ActivityLog::record('archived_user', 'User Management', "Archived user {$email}");
 
-        return response()->json(['message' => 'User deleted successfully.']);
+        return response()->json(['message' => 'User archived successfully.']);
+    }
+
+    public function unarchive(User $user): JsonResponse
+    {
+        $email = $user->email;
+
+        if ($user->trashed()) {
+            $user->restore();
+        }
+
+        $user->update(['is_archived' => false]);
+        ActivityLog::record('unarchived_user', 'User Management', "Unarchived user {$email}");
+
+        return response()->json(['message' => 'User unarchived successfully.']);
     }
 }
