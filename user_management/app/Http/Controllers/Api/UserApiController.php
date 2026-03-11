@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Payslip;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,13 +14,77 @@ use Illuminate\Validation\Rule;
 
 class UserApiController extends Controller
 {
+    private function normalizeRoleName(?string $name): string
+    {
+        return strtolower(trim($name ?? ''));
+    }
+
+    private function roleName(?User $user): string
+    {
+        return $this->normalizeRoleName($user?->role?->name);
+    }
+
+    private function isSystemAdmin(User $user): bool
+    {
+        return $this->roleName($user) === 'system admin';
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $this->roleName($user) === 'admin';
+    }
+
+    private function isUserRole(User $user): bool
+    {
+        return $this->roleName($user) === 'user';
+    }
+
+    private function canManageRole(User $actor, string $targetRoleName): bool
+    {
+        if ($this->isSystemAdmin($actor)) {
+            return true;
+        }
+
+        if ($this->isAdmin($actor)) {
+            return $targetRoleName === 'user';
+        }
+
+        return false;
+    }
+
+    private function canManageOther(User $actor, User $target): bool
+    {
+        if ($actor->id === $target->id) {
+            return false;
+        }
+
+        return $this->canManageRole($actor, $this->roleName($target));
+    }
+
     public function index(Request $request): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $perPage = (int) $request->integer('per_page', 15);
 
         $query = User::query()
             ->with(['office', 'role', 'permissions'])
             ->latest();
+
+        if ($this->isAdmin($actor) && ! $this->isSystemAdmin($actor)) {
+            $query->whereHas('role', function ($q) {
+                $q->where('name', 'User');
+            });
+        }
 
         if ($request->boolean('only_archived')) {
             $query->where('is_archived', true);
@@ -36,6 +101,13 @@ class UserApiController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         $validated = $request->validate([
             'employee_id' => ['required', 'string', 'max:255', 'unique:users,employee_id'],
             'first_name' => ['required', 'string', 'max:255'],
@@ -51,6 +123,13 @@ class UserApiController extends Controller
             'permission_ids' => ['nullable', 'array'],
             'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ]);
+
+        $role = Role::query()->find((int) $validated['role_id']);
+        $roleName = $this->normalizeRoleName($role?->name);
+
+        if (! $this->canManageRole($actor, $roleName)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
 
         $user = User::query()->create([
             'employee_id' => $validated['employee_id'],
@@ -76,6 +155,21 @@ class UserApiController extends Controller
 
     public function show(User $user): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = request()->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($actor->id !== $user->id && ! $this->canManageOther($actor, $user)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $user->load(['office', 'role', 'permissions', 'activityLogs']);
 
         return response()->json($user);
@@ -83,6 +177,21 @@ class UserApiController extends Controller
 
     public function update(Request $request, User $user): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($actor->id !== $user->id && ! $this->canManageOther($actor, $user)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $validated = $request->validate([
             'employee_id' => ['required', 'string', 'max:255', Rule::unique('users', 'employee_id')->ignore($user->id)],
             'first_name' => ['required', 'string', 'max:255'],
@@ -98,6 +207,14 @@ class UserApiController extends Controller
             'permission_ids' => ['nullable', 'array'],
             'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ]);
+
+        if (! $this->isSystemAdmin($actor) && (int) $validated['role_id'] !== (int) $user->role_id) {
+            return response()->json(['message' => 'You do not have permission to change roles.'], 403);
+        }
+
+        if ($this->isAdmin($actor) && $actor->id !== $user->id && ! $this->isUserRole($user)) {
+            return response()->json(['message' => 'Admins may only manage users with the User role.'], 403);
+        }
 
         $payload = [
             'employee_id' => $validated['employee_id'],
@@ -126,6 +243,25 @@ class UserApiController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = auth()->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($actor->id === $user->id) {
+            return response()->json(['message' => 'You cannot archive your own account.'], 403);
+        }
+
+        if (! $this->canManageOther($actor, $user)) {
+            return response()->json(['message' => 'You do not have permission to archive this user.'], 403);
+        }
+
         $email = $user->email;
         $user->update(['is_archived' => true]);
         ActivityLog::record('archived_user', 'User Management', "Archived user {$email}");
@@ -135,6 +271,25 @@ class UserApiController extends Controller
 
     public function unarchive(User $user): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = auth()->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($actor->id === $user->id) {
+            return response()->json(['message' => 'You cannot unarchive your own account.'], 403);
+        }
+
+        if (! $this->canManageOther($actor, $user)) {
+            return response()->json(['message' => 'You do not have permission to unarchive this user.'], 403);
+        }
+
         if ($user->trashed()) {
             return response()->json([
                 'message' => 'Cannot unarchive a deleted user.',
@@ -151,10 +306,29 @@ class UserApiController extends Controller
 
     public function softDelete(User $user): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = auth()->user();
+
+        if (! $actor) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($actor->id === $user->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 403);
+        }
+
+        if (! $this->canManageOther($actor, $user)) {
+            return response()->json(['message' => 'You do not have permission to delete this user.'], 403);
+        }
+
         $hasActivePayslips = Payslip::query()
-        ->where('user_id', $user->id)
-        ->where('is_archived', false)
-        ->exists();
+            ->where('user_id', $user->id)
+            ->where('is_archived', false)
+            ->exists();
 
         $hasArchivedPayslips = Payslip::query()
             ->where('user_id', $user->id)
