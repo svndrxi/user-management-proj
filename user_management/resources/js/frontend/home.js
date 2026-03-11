@@ -299,6 +299,7 @@ function navigate(pageId) {
   document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
   updatePageTitle(pageId);
   localStorage.setItem('activePage', pageId);
+  localStorage.removeItem('activeSubPanel');
 
   // Always reset User Management back to the main list when navigating away and back
   if (pageId === 'userManagementPage') {
@@ -320,12 +321,14 @@ async function openArchiveList() {
   archivePage = 1;
   renderArchive();
   updateBulkActionUI();
+  localStorage.setItem('activeSubPanel', 'userArchiveList');
 }
 
 function closeArchiveList() {
   document.getElementById('archiveListPanel').style.display = 'none';
   document.getElementById('userManagementMain').style.display = 'block';
   updateBulkActionUI();
+  localStorage.removeItem('activeSubPanel');
 }
 
 function getVisibleUserRows() {
@@ -1519,12 +1522,14 @@ function openPayslipArchiveList() {
   payslipArchivePage = 1;
   renderArchivedPayslips();
   updateBulkActionUI();
+  localStorage.setItem('activeSubPanel', 'payslipArchiveList');
 }
 
 function closePayslipArchiveList() {
   document.getElementById('payslipArchivePanel').style.display = 'none';
   document.getElementById('payslipManagementMain').style.display = 'block';
   updateBulkActionUI();
+  localStorage.removeItem('activeSubPanel');
 }
 
 function formatPayDate(dateStr) {
@@ -2134,6 +2139,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateFormButtons();
   renderLastVisited();
 
+  // Capture sub-panel state BEFORE navigate() clears it
+  const savedSubPanel = localStorage.getItem('activeSubPanel');
+
   // Restore last visited page immediately to avoid any flash of wrong page
   const savedPage = localStorage.getItem('activePage');
   if (savedPage && document.getElementById(savedPage) && document.querySelector(`[data-page="${savedPage}"]`)) {
@@ -2169,6 +2177,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderPayslips();
       renderArchivedPayslips();
     }
+  }
+
+  // Restore archive sub-panel if it was active on last reload
+  if (savedSubPanel === 'userArchiveList') {
+    // Re-save it because navigate() removed it, then open the panel
+    localStorage.setItem('activeSubPanel', 'userArchiveList');
+    document.getElementById('userManagementMain').style.display = 'none';
+    document.getElementById('archiveListPanel').style.display = 'block';
+    renderArchive();
+    updateBulkActionUI();
+  } else if (savedSubPanel === 'payslipArchiveList') {
+    localStorage.setItem('activeSubPanel', 'payslipArchiveList');
+    document.getElementById('payslipManagementMain').style.display = 'none';
+    document.getElementById('payslipArchivePanel').style.display = 'block';
+    renderArchivedPayslips();
+    updateBulkActionUI();
   }
 
   // Sidebar toggle
