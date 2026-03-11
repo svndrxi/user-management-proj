@@ -327,7 +327,6 @@
                   </th>
                   <th>Employee ID</th>
                   <th>Name</th>
-                  <th>Month</th>
                   <th>Pay Date</th>
                   <th>Action</th>
                 </tr>
@@ -372,7 +371,6 @@
                   </th>
                   <th>Employee ID</th>
                   <th>Name</th>
-                  <th>Month</th>
                   <th>Pay Date</th>
                   <th>Action</th>
                 </tr>

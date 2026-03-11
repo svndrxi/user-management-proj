@@ -298,6 +298,7 @@ function navigate(pageId) {
   document.getElementById(pageId).classList.add('active');
   document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
   updatePageTitle(pageId);
+  localStorage.setItem('activePage', pageId);
 
   // Always reset User Management back to the main list when navigating away and back
   if (pageId === 'userManagementPage') {
@@ -1549,7 +1550,6 @@ function renderPayslips() {
       </td>
       <td>${p.empId}</td>
       <td>${displayName}</td>
-      <td>${p.month}</td>
       <td>${formatPayDate(p.payDate)}</td>
       <td>
         <div class="action-btns">
@@ -1572,7 +1572,7 @@ function renderPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="6"></td>';
+    tr.innerHTML = '<td colspan="5"></td>';
     tbody.appendChild(tr);
   }
 
@@ -1617,7 +1617,6 @@ function renderArchivedPayslips() {
       </td>
       <td>${p.empId}</td>
       <td>${displayName}</td>
-      <td>${p.month}</td>
       <td>${formatPayDate(p.payDate)}</td>
       <td>
         <div class="action-btns">
@@ -1632,7 +1631,7 @@ function renderArchivedPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="6"></td>';
+    tr.innerHTML = '<td colspan="5"></td>';
     tbody.appendChild(tr);
   }
 
@@ -2095,6 +2094,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateFormButtons();
   renderLastVisited();
 
+  // Restore last visited page immediately to avoid any flash of wrong page
+  const savedPage = localStorage.getItem('activePage');
+  if (savedPage && document.getElementById(savedPage) && document.querySelector(`[data-page="${savedPage}"]`)) {
+    navigate(savedPage);
+  } else {
+    const activePage = document.querySelector('.page.active')?.id;
+    updatePageTitle(activePage || 'profilePage');
+  }
+
   if (document.getElementById('userTableBody')) {
     try {
       await loadReferenceData();
@@ -2122,9 +2130,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderArchivedPayslips();
     }
   }
-
-  const activePage = document.querySelector('.page.active')?.id;
-  updatePageTitle(activePage || 'profilePage');
 
   // Sidebar toggle
   const sidebar     = document.getElementById('sidebar');
