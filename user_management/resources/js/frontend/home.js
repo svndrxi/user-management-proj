@@ -150,15 +150,14 @@ function monthFromPayDate(dateStr) {
 }
 
 function normalizePayslip(p) {
-  const user = p.user || {};
   const payDate = String(p.payroll_date || p.payrollDate || '').slice(0, 10);
 
   return {
     id: p.id,
-    empId: user.employee_id || '',
-    firstName: user.first_name || '',
-    middleName: user.middle_name || '',
-    lastName: user.last_name || '',
+    empId: p.employee_id || p.emp_id || '',
+    firstName: p.first_name || '',
+    middleName: p.middle_name || '',
+    lastName: p.last_name || '',
     month: monthFromPayDate(payDate),
     payDate,
   };

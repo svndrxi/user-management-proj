@@ -14,10 +14,11 @@ return new class extends Migration
         Schema::create('payslips', function (Blueprint $table) {
             $table->id();
 
-            //reference to employee
-            $table->foreignId('user_id')
-                  ->constrained('users')
-                  ->onDelete('restrict');
+            // Standalone employee reference (not linked to users)
+            $table->string('employee_id')->index();
+            $table->string('first_name')->nullable();
+            $table->string('middle_name')->nullable();
+            $table->string('last_name')->nullable();
 
             //payroll
             $table->date('payroll_date');

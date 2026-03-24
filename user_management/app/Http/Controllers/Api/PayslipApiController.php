@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Payslip;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -19,7 +18,6 @@ class PayslipApiController extends Controller
         $perPage = (int) $request->integer('per_page', 15);
 
         $query = Payslip::query()
-            ->with(['user'])
             ->latest('payroll_date');
 
         if ($request->boolean('only_archived')) {
@@ -30,8 +28,8 @@ class PayslipApiController extends Controller
             $query->where('is_archived', false);
         }
 
-        if ($request->filled('user_id')) {
-            $query->where('user_id', (int) $request->input('user_id'));
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', trim((string) $request->input('employee_id')));
         }
 
         $payslips = $query->paginate(max(1, min($perPage, 100)));
@@ -42,51 +40,58 @@ class PayslipApiController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'employee_id' => ['required', 'string', 'max:100'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
             'payroll_date' => ['required', 'date'],
         ]);
 
         $payslip = Payslip::query()->create([
-            'user_id' => (int) $validated['user_id'],
+            'employee_id' => trim($validated['employee_id']),
+            'first_name' => $validated['first_name'] ?? null,
+            'middle_name' => $validated['middle_name'] ?? null,
+            'last_name' => $validated['last_name'] ?? null,
             'payroll_date' => $validated['payroll_date'],
             'is_archived' => false,
         ]);
 
-        $payslip->load(['user']);
-        ActivityLog::record('created_payslip', 'Payslip Management', "Created payslip for {$payslip->user->employee_id}");
+        ActivityLog::record('created_payslip', 'Payslip Management', "Created payslip for {$payslip->employee_id}");
 
         return response()->json($payslip, 201);
     }
 
     public function show(Payslip $payslip): JsonResponse
     {
-        $payslip->load(['user']);
-
         return response()->json($payslip);
     }
 
     public function update(Request $request, Payslip $payslip): JsonResponse
     {
         $validated = $request->validate([
-            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'employee_id' => ['required', 'string', 'max:100'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
             'payroll_date' => ['required', 'date'],
         ]);
 
         $payslip->update([
-            'user_id' => (int) $validated['user_id'],
+            'employee_id' => trim($validated['employee_id']),
+            'first_name' => $validated['first_name'] ?? null,
+            'middle_name' => $validated['middle_name'] ?? null,
+            'last_name' => $validated['last_name'] ?? null,
             'payroll_date' => $validated['payroll_date'],
         ]);
 
-        $payslip->load(['user']);
-        ActivityLog::record('updated_payslip', 'Payslip Management', "Updated payslip for {$payslip->user->employee_id}");
+        ActivityLog::record('updated_payslip', 'Payslip Management', "Updated payslip for {$payslip->employee_id}");
 
         return response()->json($payslip);
     }
 
     public function destroy(Payslip $payslip): JsonResponse
     {
-        $payslip->loadMissing(['user']);
-        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
+        $emp_id = $payslip->employee_id ?: (string) $payslip->id;
         $payslip->update(['is_archived' => true]);
         ActivityLog::record('archived_payslip', 'Payslip Management', "Archived payslip for {$emp_id}");
 
@@ -95,8 +100,7 @@ class PayslipApiController extends Controller
 
     public function unarchive(Payslip $payslip): JsonResponse
     {
-        $payslip->loadMissing(['user']);
-        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
+        $emp_id = $payslip->employee_id ?: (string) $payslip->id;
 
         if ($payslip->trashed()) {
             return response()->json([
@@ -112,8 +116,7 @@ class PayslipApiController extends Controller
 
     public function softDelete(Payslip $payslip): JsonResponse
     {
-        $payslip->loadMissing(['user']);
-        $emp_id = $payslip->user?->employee_id ?? $payslip->id;
+        $emp_id = $payslip->employee_id ?: (string) $payslip->id;
 
         $payslip->delete();
 
@@ -152,17 +155,14 @@ class PayslipApiController extends Controller
 
             foreach ($rows as $rowIndex => $row) {
                 try {
-                    $employeeId = trim((string) ($row['employee_id'] ?? $row['emp_id'] ?? $row['empid'] ?? ''));
+                    $employeeId = trim((string) ($row['employee_id'] ?? $row['emp_id'] ?? $row['empid'] ?? $row['user_id'] ?? ''));
                     $payrollDate = $row['payroll_date'] ?? $row['pay_date'] ?? $row['paydate'] ?? null;
+                    $firstName = isset($row['first_name']) ? trim((string) $row['first_name']) : null;
+                    $middleName = isset($row['middle_name']) ? trim((string) $row['middle_name']) : null;
+                    $lastName = isset($row['last_name']) ? trim((string) $row['last_name']) : null;
 
                     if ($employeeId === '' || empty($payrollDate)) {
                         $skipped++;
-                        continue;
-                    }
-
-                    $user = User::query()->where('employee_id', $employeeId)->first();
-                    if (! $user) {
-                        $errors[] = ['row' => $rowIndex, 'error' => "Employee ID {$employeeId} not found."];
                         continue;
                     }
 
@@ -174,17 +174,38 @@ class PayslipApiController extends Controller
 
                     $existing = Payslip::query()
                         ->withTrashed()
-                        ->where('user_id', $user->id)
+                        ->where('employee_id', $employeeId)
                         ->whereDate('payroll_date', $dateString)
                         ->first();
 
                     if ($existing) {
+                        $needsUpdate = false;
+
                         if ($existing->trashed()) {
                             $existing->restore();
+                            $needsUpdate = true;
                         }
 
                         if ($existing->is_archived) {
-                            $existing->update(['is_archived' => false]);
+                            $existing->is_archived = false;
+                            $needsUpdate = true;
+                        }
+
+                        if ($firstName !== null && $firstName !== '' && empty($existing->first_name)) {
+                            $existing->first_name = $firstName;
+                            $needsUpdate = true;
+                        }
+                        if ($middleName !== null && $middleName !== '' && empty($existing->middle_name)) {
+                            $existing->middle_name = $middleName;
+                            $needsUpdate = true;
+                        }
+                        if ($lastName !== null && $lastName !== '' && empty($existing->last_name)) {
+                            $existing->last_name = $lastName;
+                            $needsUpdate = true;
+                        }
+
+                        if ($needsUpdate) {
+                            $existing->save();
                             $restored++;
                         } else {
                             $skipped++;
@@ -193,7 +214,10 @@ class PayslipApiController extends Controller
                     }
 
                     Payslip::query()->create([
-                        'user_id' => $user->id,
+                        'employee_id' => $employeeId,
+                        'first_name' => $firstName ?: null,
+                        'middle_name' => $middleName ?: null,
+                        'last_name' => $lastName ?: null,
                         'payroll_date' => $dateString,
                         'is_archived' => false,
                     ]);

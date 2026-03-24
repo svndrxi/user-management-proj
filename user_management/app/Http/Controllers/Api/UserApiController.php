@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Payslip;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -323,25 +322,6 @@ class UserApiController extends Controller
 
         if (! $this->canManageOther($actor, $user)) {
             return response()->json(['message' => 'You do not have permission to delete this user.'], 403);
-        }
-
-        $hasActivePayslips = Payslip::query()
-            ->where('user_id', $user->id)
-            ->where('is_archived', false)
-            ->exists();
-
-        $hasArchivedPayslips = Payslip::query()
-            ->where('user_id', $user->id)
-            ->where('is_archived', true)
-            ->exists();
-
-        if ($hasActivePayslips || $hasArchivedPayslips) {
-            $payslipLocation = $hasActivePayslips ? 'active list' : 'archive list';
-
-            return response()->json([
-                'message' => "User cannot be deleted because they have payslip records in the {$payslipLocation}.",
-                'payslip_location' => $payslipLocation,
-            ], 422);
         }
 
         $email = $user->email;
