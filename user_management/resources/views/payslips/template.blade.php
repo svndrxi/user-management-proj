@@ -6,7 +6,7 @@
   <title>Payroll Payment Slip</title>
   <style>
     @page { size: A4; margin: 0.4in; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box;}
     body {
       font-family: Arial, sans-serif;
       font-size: 11px;
@@ -16,11 +16,11 @@
     .container {
       width: 100%;
       border: 1px solid #000;
+      
     }
 
     /* ── HEADER ── */
     .header {
-      border-bottom: 2px solid #000;
       padding: 8px 10px 6px;
       text-align: center;
     }
@@ -131,7 +131,8 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 10px;
-      border: 1px solid #000;
+      border-top: 1px #000;
+      border-bottom: 1px  #000;
     }
     .ded-table td {
       padding: 1px 4px;
@@ -210,6 +211,7 @@
   </style>
 </head>
 <body>
+<br><br><br><br><br>
 <div class="container">
 
   <!-- HEADER -->
