@@ -1994,145 +1994,56 @@ async function confirmImport() {
 }
 
 // ===== PRINT PAYSLIP =====
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function printPayslip(payslipId) {
   const p = payslipsData.find(ps => ps.id === payslipId);
   if (!p) return;
 
   const fullName = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ');
-  const payDateFormatted = formatPayDate(p.payDate);
-  const logoUrl = document.getElementById('lraLogoUrl')?.dataset?.url || '';
+  const payDate = p.payDate ? new Date(`${p.payDate}T00:00:00`) : new Date();
+  const year = Number.isNaN(payDate.getTime()) ? new Date().getFullYear() : payDate.getFullYear();
+  const monthName = p.month || payDate.toLocaleString('en-US', { month: 'long' });
+  const payPeriod = `${monthName} ${year}`;
+  const payout15 = `${monthName} 14, ${year}`;
+  const payout30 = `${monthName} 28, ${year}`;
+  const employeeNo = p.empId || '20260302';
 
-  const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="LRA Logo" style="width:68px;height:68px;object-fit:contain;display:block;" />`
-    : `<div style="width:68px;height:68px;background:#0a1f6e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;text-align:center;">LRA</div>`;
+  const templateElement = document.getElementById('payslipPrintTemplate');
+  if (!templateElement) {
+    showToast('Payslip print template is missing in the page.', 'error');
+    return;
+  }
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Payroll Slip - ${fullName}</title>
-  <style>
-    @media print {
-      body { margin: 0; }
-      @page { margin: 1.2cm; size: A4; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#333333;margin:0;padding:0;background:#ffffff;">
-  <div style="max-width:700px;margin:0 auto;padding:36px 40px;">
+  let html = String(templateElement.innerHTML || '').trim();
+  if (!html) {
+    showToast('Payslip print template is empty.', 'error');
+    return;
+  }
 
-    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
-      <tr>
-        <td style="width:55%;vertical-align:middle;">
-          <table style="border-collapse:collapse;">
-            <tr>
-              <td style="vertical-align:middle;padding-right:12px;">${logoHtml}</td>
-              <td style="vertical-align:middle;">
-                <div style="font-size:16px;font-weight:700;color:#0a1f6e;line-height:1.2;margin-bottom:4px;">Land Registration Authority</div>
-                <div style="font-size:11px;color:#555555;line-height:1.5;">East Avenue cor. NIA Road, Diliman,<br>Quezon City, 1101 Metro Manila</div>
-              </td>
-            </tr>
-          </table>
-        </td>
-        <td style="width:45%;text-align:right;vertical-align:top;color:#555555;font-size:11.5px;line-height:1.7;">
-          <div>Address</div>
-          <div>your@email.com</div>
-          <div>222 555 7777</div>
-        </td>
-      </tr>
-    </table>
+  const replacements = [
+    ['April 2025', payPeriod],
+    ['JUAN DELA CRUZ', fullName || 'JUAN DELA CRUZ'],
+    ['20260302', employeeNo],
+    ['April 14, 2025', payout15],
+    ['April 28, 2025', payout30],
+  ];
 
-    <hr style="border:none;border-top:1px solid #cccccc;margin-bottom:22px;" />
+  replacements.forEach(([search, value]) => {
+    html = html.split(search).join(escapeHtml(value));
+  });
 
-    <h1 style="text-align:center;font-size:22px;font-weight:700;color:#111111;margin:0 0 8px 0;">Payroll Slip</h1>
-    <p style="text-align:center;font-size:13px;color:#333333;margin:0 0 26px 0;">
-      <strong>Pay Period:</strong> ${p.month} 1 - 15, ${new Date(p.payDate + 'T00:00:00').getFullYear() || 2026};
-      <strong>Pay Date:</strong> ${payDateFormatted}
-    </p>
-
-    <p style="font-size:13px;margin:0 0 6px 0;"><strong>Employee Name:</strong> ${fullName}</p>
-    <p style="font-size:13px;margin:0 0 24px 0;"><strong>Employee ID:</strong> ${p.empId}</p>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-      <thead>
-        <tr>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:34%;">Earnings</th>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Details</th>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Base Salary</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Overtime Pay</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;">Gross Salary</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">&nbsp;</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
-      <thead>
-        <tr>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:34%;">Deductions</th>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Details</th>
-          <th style="border:1px solid #bbbbbb;padding:9px 12px;text-align:left;background:#f2f2f2;font-size:13px;font-weight:700;color:#111111;width:33%;">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Taxes</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Late Penalties</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Insurances</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">Absences</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;">Total Deductions</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;">&nbsp;</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;"></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
-      <tbody>
-        <tr>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#111111;font-weight:700;width:67%;">Net Pay</td>
-          <td style="border:1px solid #bbbbbb;padding:9px 12px;font-size:13px;color:#333333;width:33%;"></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p style="font-size:12px;color:#666666;margin:0;">For inquiries, please feel free to contact [Your Name] at [Your Email].</p>
-
-  </div>
-  <script>window.onload = function(){ window.print(); }<\/script>
-</body>
-</html>`;
+  html = html.replace(
+    '<title>Payroll Payment Slip</title>',
+    `<title>Payroll Payment Slip - ${escapeHtml(fullName || employeeNo)}</title>`
+  );
 
   const printWin = window.open('', '_blank', 'width=850,height=750');
   if (!printWin) {
@@ -2141,6 +2052,19 @@ function printPayslip(payslipId) {
   }
   printWin.document.write(html);
   printWin.document.close();
+  printWin.focus();
+
+  const triggerPrint = () => {
+    try {
+      printWin.focus();
+      printWin.print();
+    } catch (_) {
+      showToast('Print dialog was blocked. Please use Ctrl+P in the payslip window.', 'info');
+    }
+  };
+
+  printWin.addEventListener('load', triggerPrint, { once: true });
+  setTimeout(triggerPrint, 350);
 }
 
 // ===== SVG ICONS =====
