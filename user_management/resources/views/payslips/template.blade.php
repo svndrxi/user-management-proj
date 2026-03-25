@@ -140,9 +140,10 @@
     .ded-table .col-label { width: 75%; }
     .ded-table .col-amount { width: 25%; text-align: right; }
     .ded-table .cat-header td {
-      font-weight: bold;
+      font-weight: light;
       padding-top: 3px;
     }
+    
     .ded-table .sub-item .col-label { padding-left: 20px; }
     .ded-table .sub-sub-item .col-label { padding-left: 40px; }
 
@@ -195,17 +196,6 @@
       font-size: 8px;
       margin-top: 2px;
     }
-    @page {
-      size: A4;
-      margin: 0.4in;
-      @bottom-left { content: ''; }
-      @bottom-center { content: ''; }
-      @bottom-right { content: ''; }
-      @top-left { content: ''; }
-      @top-center { content: ''; }
-      @top-right { content: ''; }
-    }
-
   </style>
 </head>
 <body>
