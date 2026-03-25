@@ -18,7 +18,7 @@ class PayslipApiController extends Controller
         $perPage = (int) $request->integer('per_page', 15);
 
         $query = Payslip::query()
-            ->latest('payroll_date');
+            ->latest('pay_period');
 
         if ($request->boolean('only_archived')) {
             $query->where('is_archived', true);
@@ -40,25 +40,84 @@ class PayslipApiController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'employee_id' => ['required', 'string', 'max:100'],
-            'first_name' => ['nullable', 'string', 'max:255'],
-            'middle_name' => ['nullable', 'string', 'max:255'],
-            'last_name' => ['nullable', 'string', 'max:255'],
-            'payroll_date' => ['required', 'date'],
+        // Pay Period
+        'pay_period'        => ['required', 'date'],
+
+        // Employee Information
+        'employee_id'       => ['required', 'string', 'max:100'],
+        'name'              => ['required', 'string', 'max:255'],
+        'department'        => ['nullable', 'string', 'max:255'],
+        'designation'       => ['required', 'string', 'max:255'],
+
+        // Earnings
+        'monthly_salary'    => ['nullable', 'numeric', 'min:0'],
+        'pera'              => ['nullable', 'numeric', 'min:0'],
+        'gross_amount'      => ['nullable', 'numeric', 'min:0'],
+
+        // Deductions
+        'gsis_premium'      => ['nullable', 'numeric', 'min:0'],
+        'hdmf_premium'      => ['nullable', 'numeric', 'min:0'],
+        'tax_withheld'      => ['nullable', 'numeric', 'min:0'],
+        'philhealth'        => ['nullable', 'numeric', 'min:0'],
+        'conso_loan'        => ['nullable', 'numeric', 'min:0'],
+        'policy_loan'       => ['nullable', 'numeric', 'min:0'],
+        'hdmf_loan'         => ['nullable', 'numeric', 'min:0'],
+        'landbank_loan'     => ['nullable', 'numeric', 'min:0'],
+        'lraea'             => ['nullable', 'numeric', 'min:0'],
+        'gabay'             => ['nullable', 'numeric', 'min:0'],
+        'lraecc'            => ['nullable', 'numeric', 'min:0'],
+        'ecash_adv'         => ['nullable', 'numeric', 'min:0'],
+        'educ_ln'           => ['nullable', 'numeric', 'min:0'],
+        'emer_ln'           => ['nullable', 'numeric', 'min:0'],
+        'fip_g'             => ['nullable', 'numeric', 'min:0'],
+        'fire_h'            => ['nullable', 'numeric', 'min:0'],
+        'fire_n'            => ['nullable', 'numeric', 'min:0'],
+        'hdmf_cal'          => ['nullable', 'numeric', 'min:0'],
+        'hdmg_hsng'         => ['nullable', 'numeric', 'min:0'],
+        'honor_disallow'    => ['nullable', 'numeric', 'min:0'],
+        'ltcp_disallow'     => ['nullable', 'numeric', 'min:0'],
+        'lwop'              => ['nullable', 'numeric', 'min:0'],
+        'mri_h'             => ['nullable', 'numeric', 'min:0'],
+        'mri_n'             => ['nullable', 'numeric', 'min:0'],
+        'nhfmc'             => ['nullable', 'numeric', 'min:0'],
+        'opt_pol_ln'        => ['nullable', 'numeric', 'min:0'],
+        'rel'               => ['nullable', 'numeric', 'min:0'],
+        'sri_g'             => ['nullable', 'numeric', 'min:0'],
+        'uoli'              => ['nullable', 'numeric', 'min:0'],
+        'gfal_ii'           => ['nullable', 'numeric', 'min:0'],
+        'mpl'               => ['nullable', 'numeric', 'min:0'],
+        'mpl_lite'          => ['nullable', 'numeric', 'min:0'],
+        'comp_ln'           => ['nullable', 'numeric', 'min:0'],
+        'nards'             => ['nullable', 'numeric', 'min:0'],
+        'fine'              => ['nullable', 'numeric', 'min:0'],
+        'help'              => ['nullable', 'numeric', 'min:0'],
+        'pvb_ln'            => ['nullable', 'numeric', 'min:0'],
+        'total_deductions'  => ['nullable', 'numeric', 'min:0'],
+
+        // Net Pay
+        'net_pay'           => ['nullable', 'numeric'],
+        'pay_15th'          => ['nullable', 'numeric'],
+        'pay_30th'          => ['nullable', 'numeric'],
+        '15th_dop'          => ['nullable', 'date'],
+        '30th_dop'          => ['nullable', 'date'],
+
+        // Others
+        'aom_2013_014'      => ['nullable', 'numeric', 'min:0'],
+        'cna_2009'          => ['nullable', 'numeric', 'min:0'],
+        'dorm_fee'          => ['nullable', 'numeric', 'min:0'],
+
+        'is_archived'       => ['sometimes', 'boolean'],
         ]);
 
-        $payslip = Payslip::query()->create([
-            'employee_id' => trim($validated['employee_id']),
-            'first_name' => $validated['first_name'] ?? null,
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'] ?? null,
-            'payroll_date' => $validated['payroll_date'],
-            'is_archived' => false,
-        ]);
+        $payslip = Payslip::create($validated);
 
         ActivityLog::record('created_payslip', 'Payslip Management', "Created payslip for {$payslip->employee_id}");
 
-        return response()->json($payslip, 201);
+        return response()->json([
+            'message' => 'Payslip created successfully.',
+            'data'    => $payslip,
+        ], 201);
+
     }
 
     public function show(Payslip $payslip): JsonResponse
@@ -69,24 +128,84 @@ class PayslipApiController extends Controller
     public function update(Request $request, Payslip $payslip): JsonResponse
     {
         $validated = $request->validate([
-            'employee_id' => ['required', 'string', 'max:100'],
-            'first_name' => ['nullable', 'string', 'max:255'],
-            'middle_name' => ['nullable', 'string', 'max:255'],
-            'last_name' => ['nullable', 'string', 'max:255'],
-            'payroll_date' => ['required', 'date'],
+        // Pay Period
+        'pay_period'        => ['sometimes', 'date'],
+
+        // Employee Information
+        'employee_id'       => ['sometimes', 'string', 'max:100'],
+        'name'              => ['sometimes', 'string', 'max:255'],
+        'department'        => ['sometimes', 'nullable', 'string', 'max:255'],
+        'designation'       => ['sometimes', 'string', 'max:255'],
+
+        // Earnings
+        'monthly_salary'    => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'pera'              => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'gross_amount'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
+
+        // Deductions
+        'gsis_premium'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'hdmf_premium'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'tax_withheld'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'philhealth'        => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'conso_loan'        => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'policy_loan'       => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'hdmf_loan'         => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'landbank_loan'     => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'lraea'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'gabay'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'lraecc'            => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'ecash_adv'         => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'educ_ln'           => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'emer_ln'           => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'fip_g'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'fire_h'            => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'fire_n'            => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'hdmf_cal'          => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'hdmg_hsng'         => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'honor_disallow'    => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'ltcp_disallow'     => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'lwop'              => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'mri_h'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'mri_n'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'nhfmc'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'opt_pol_ln'        => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'rel'               => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'sri_g'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'uoli'              => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'gfal_ii'           => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'mpl'               => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'mpl_lite'          => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'comp_ln'           => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'nards'             => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'fine'              => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'help'              => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'pvb_ln'            => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'total_deductions'  => ['sometimes', 'nullable', 'numeric', 'min:0'],
+
+        // Net Pay
+        'net_pay'           => ['sometimes', 'nullable', 'numeric'],
+        'pay_15th'          => ['sometimes', 'nullable', 'numeric'],
+        'pay_30th'          => ['sometimes', 'nullable', 'numeric'],
+        '15th_dop'          => ['sometimes', 'nullable', 'date'],
+        '30th_dop'          => ['sometimes', 'nullable', 'date'],
+
+        // Others
+        'aom_2013_014'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'cna_2009'          => ['sometimes', 'nullable', 'numeric', 'min:0'],
+        'dorm_fee'          => ['sometimes', 'nullable', 'numeric', 'min:0'],
+
+        'is_archived'       => ['sometimes', 'boolean'],
         ]);
 
-        $payslip->update([
-            'employee_id' => trim($validated['employee_id']),
-            'first_name' => $validated['first_name'] ?? null,
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'] ?? null,
-            'payroll_date' => $validated['payroll_date'],
-        ]);
+        $payslip->update($validated);
 
         ActivityLog::record('updated_payslip', 'Payslip Management', "Updated payslip for {$payslip->employee_id}");
 
-        return response()->json($payslip);
+        return response()->json([
+            'message' => 'Payslip updated successfully.',
+            'data'    => $payslip->fresh(),
+        ], 200);
+
     }
 
     public function destroy(Payslip $payslip): JsonResponse
@@ -155,27 +274,27 @@ class PayslipApiController extends Controller
 
             foreach ($rows as $rowIndex => $row) {
                 try {
-                    $employeeId = trim((string) ($row['employee_id'] ?? $row['emp_id'] ?? $row['empid'] ?? $row['user_id'] ?? ''));
-                    $payrollDate = $row['payroll_date'] ?? $row['pay_date'] ?? $row['paydate'] ?? null;
-                    $firstName = isset($row['first_name']) ? trim((string) $row['first_name']) : null;
-                    $middleName = isset($row['middle_name']) ? trim((string) $row['middle_name']) : null;
-                    $lastName = isset($row['last_name']) ? trim((string) $row['last_name']) : null;
+                    $employeeId = trim((string) ($row['employee_id'] ?? $row['emp_id'] ?? $row['employee_number'] ?? $row['user_id'] ?? ''));
+                    $payPeriod = $row['pay_period'] ?? $row['payroll_date'] ?? $row['pay_date'] ?? $row['paydate'] ?? null;
+                    $name = isset($row['name']) ? trim((string) $row['name']) : '';
+                    $department = isset($row['department']) ? trim((string) $row['department']) : '';
+                    $designation = isset($row['designation']) ? trim((string) $row['designation']) : '';
 
-                    if ($employeeId === '' || empty($payrollDate)) {
+                    if ($employeeId === '' || empty($payPeriod)) {
                         $skipped++;
                         continue;
                     }
 
-                    $dateString = $this->normalizePayrollDate($payrollDate);
+                    $dateString = $this->normalizePayrollDate($payPeriod);
                     if ($dateString === null) {
-                        $errors[] = ['row' => $rowIndex, 'error' => "Invalid payroll_date for Employee ID {$employeeId}."];
+                        $errors[] = ['row' => $rowIndex, 'error' => "Invalid pay_period for Employee ID {$employeeId}."];
                         continue;
                     }
 
                     $existing = Payslip::query()
                         ->withTrashed()
                         ->where('employee_id', $employeeId)
-                        ->whereDate('payroll_date', $dateString)
+                        ->whereDate('pay_period', $dateString)
                         ->first();
 
                     if ($existing) {
@@ -191,16 +310,16 @@ class PayslipApiController extends Controller
                             $needsUpdate = true;
                         }
 
-                        if ($firstName !== null && $firstName !== '' && empty($existing->first_name)) {
-                            $existing->first_name = $firstName;
+                        if ($name !== '' && empty($existing->name)) {
+                            $existing->name = $name;
                             $needsUpdate = true;
                         }
-                        if ($middleName !== null && $middleName !== '' && empty($existing->middle_name)) {
-                            $existing->middle_name = $middleName;
+                        if ($department !== '' && empty($existing->department)) {
+                            $existing->department = $department;
                             $needsUpdate = true;
                         }
-                        if ($lastName !== null && $lastName !== '' && empty($existing->last_name)) {
-                            $existing->last_name = $lastName;
+                        if ($designation !== '' && empty($existing->designation)) {
+                            $existing->designation = $designation;
                             $needsUpdate = true;
                         }
 
@@ -215,10 +334,10 @@ class PayslipApiController extends Controller
 
                     Payslip::query()->create([
                         'employee_id' => $employeeId,
-                        'first_name' => $firstName ?: null,
-                        'middle_name' => $middleName ?: null,
-                        'last_name' => $lastName ?: null,
-                        'payroll_date' => $dateString,
+                        'pay_period' => $dateString,
+                        'name' => $name !== '' ? $name : $employeeId,
+                        'department' => $department !== '' ? $department : null,
+                        'designation' => $designation !== '' ? $designation : 'N/A',
                         'is_archived' => false,
                     ]);
 
