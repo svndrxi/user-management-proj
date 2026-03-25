@@ -196,6 +196,17 @@
       font-size: 8px;
       margin-top: 2px;
     }
+    @page {
+      size: A4;
+      margin: 0.4in;
+      @bottom-left { content: ''; }
+      @bottom-center { content: ''; }
+      @bottom-right { content: ''; }
+      @top-left { content: ''; }
+      @top-center { content: ''; }
+      @top-right { content: ''; }
+    }
+
   </style>
 </head>
 <body>
