@@ -14,9 +14,9 @@
       background: #fff;
     }
     .container {
-      width: 100%;
+      width: 80%;
       border: 1px solid #000;
-      
+      margin: 0 auto;
     }
 
     /* ── HEADER ── */
@@ -196,6 +196,8 @@
       text-align: right;
       font-size: 8px;
       margin-top: 2px;
+      margin: 0 auto;
+      width: 80%;
     }
     @page {
       size: A4;
@@ -484,6 +486,7 @@
 
   </div><!-- /content -->
 </div><!-- /container -->
+<br>
 <div class="form-code">A-HRDD FRM 2015 007</div>
 </body>
 </html>
