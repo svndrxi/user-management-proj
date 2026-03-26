@@ -920,6 +920,8 @@
 <!-- LRA Logo URL (for JS print template) -->
 <span id="lraLogoUrl" data-url="{{ Vite::asset('resources/images/frontend/lra_logo.png') }}" style="display:none;"></span>
 
+<template id="payslipPrintTemplate">@include('payslips.template')</template>
+
 <!-- TOAST -->
 <div class="toast-container" id="toastContainer"></div>
 
