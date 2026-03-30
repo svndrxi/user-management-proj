@@ -14,7 +14,7 @@
       background: #fff;
     }
     .container {
-      width: 70%;
+      width: 65%;
       border: 1px solid #000;
       margin: 0 auto;
     }
@@ -115,7 +115,6 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 10px;
-      table-layout: fixed;
     }
     .ded-table td {
       padding: 1px 2px;
@@ -124,9 +123,9 @@
       word-wrap: break-word;
     }
     /* c1: category label - wide enough for longest text "HDMF-Multi Purpose Loan" */
-    .ded-table .c1 { width: 15%; }
+    .ded-table .c1 { width: 20%;}
     /* c2: sub-item label */
-    .ded-table .c2 { width: 43%; }
+    .ded-table .c2 { width: 20%; }
     /* c3: amount */
     .ded-table .c3 { width: 25%; text-align: right; padding-right: 0; }
 
@@ -163,7 +162,7 @@
 
     /* ── FOOTER ── */
     .footer-note { font-size: 6px; margin-top: 6px; line-height: 1.2; }
-    .form-code { text-align: right; font-size: 8px; margin: 0 auto; width: 67%; }
+    .form-code { text-align: right; font-size: 8px; margin: 0 auto; width: 62%; }
 
     @page {
       size: A4;
@@ -339,22 +338,22 @@
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">FIB</td>
+        <td class="c2" style="padding-left:70px;">FIB</td>
         <td class="c3">{{ $fib1 ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">SRI</td>
+        <td class="c2" style="padding-left:70px;">SRI</td>
         <td class="c3">{{ $sri1 ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">MRI</td>
+        <td class="c2" style="padding-left:70px;">MRI</td>
         <td class="c3">{{ $mri1 ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">Educ Child</td>
+        <td class="c2" style="padding-left:65px;">Educ Child</td>
         <td class="c3">{{ $educChild ?? '' }}</td>
       </tr>
 
@@ -363,6 +362,7 @@
       <!-- ── HDMF-Multi Purpose Loan: c1=label, all sub-items in c2 ── -->
       <tr>
         <td class="c1">HDMF-Multi Purpose Loan</td>
+      </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Calamity Loan</td>
@@ -375,17 +375,17 @@
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">FIB</td>
+        <td class="c2" style="padding-left:70px;">FIB</td>
         <td class="c3">{{ $fib2 ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">SRI</td>
+        <td class="c2" style="padding-left:70px;">SRI</td>
         <td class="c3">{{ $sri2 ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">MRI</td>
+        <td class="c2" style="padding-left:70px;">MRI</td>
         <td class="c3">{{ $mri2 ?? '' }}</td>
       </tr>
       <tr>
@@ -439,12 +439,12 @@
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">FIRE</td>
+        <td class="c2" style="padding-left:70px">FIRE</td>
         <td class="c3">{{ $fire ?? '' }}</td>
       </tr>
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:20px;">MRI</td>
+        <td class="c2" style="padding-left:70px;">MRI</td>
         <td class="c3">{{ $mri3 ?? '' }}</td>
       </tr>
 
@@ -452,7 +452,7 @@
 
       <tr class="total-row">
         <td class="c1"></td>
-        <td class="c2" style="text-align:center; font-weight:bold;">Total Deductions</td>
+        <td class="c2" style="font-weight: bold; padding-left: 50px;">Total Deductions</td>
         <td class="c3" style="font-weight:bold;">{{ $totalDeductions ?? '7,470.00' }}</td>
       </tr>
     </table>
