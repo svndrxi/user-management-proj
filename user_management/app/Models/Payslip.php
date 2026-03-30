@@ -48,6 +48,7 @@ class Payslip extends Model
         'honor_disallow',
         'ltcp_disallow',
         'lwop',
+        'mp2',
         'mri_h',
         'mri_n',
         'nhfmc',

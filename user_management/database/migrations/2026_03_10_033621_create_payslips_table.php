@@ -50,6 +50,7 @@ return new class extends Migration
             $table->decimal('honor_disallow', 12, 2)->nullable();
             $table->decimal('ltcp_disallow', 12, 2)->nullable();
             $table->decimal('lwop', 12, 2)->nullable();
+            $table->decimal('mp2', 12, 2)->nullable();
             $table->decimal('mri_h', 12, 2)->nullable();
             $table->decimal('mri_n', 12, 2)->nullable();
             $table->decimal('nhfmc', 12, 2)->nullable();

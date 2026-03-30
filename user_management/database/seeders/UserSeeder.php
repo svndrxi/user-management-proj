@@ -37,6 +37,7 @@ class UserSeeder extends Seeder
                 'designation' => 'System Administrator',
                 'username' => 'alice.cruz',
                 'email' => 'alice@lra.gov.ph',
+                'password' => Hash::make('Admin123!'),
                 'office_id' => $hq->id,
                 'role_id' => $systemAdminRole->id,
             ],

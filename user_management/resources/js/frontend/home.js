@@ -1992,10 +1992,11 @@ async function confirmImport() {
     closeModal('importPayslipModal');
     await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
 
-    const created = Number(res?.created || 0);
-    const restored = Number(res?.restored || 0);
-    const skipped = Number(res?.skipped || 0);
-    const errors = Array.isArray(res?.errors) ? res.errors : [];
+    const result = res?.data ?? res;
+    const created = Number(result?.created || 0);
+    const restored = Number(result?.restored || 0);
+    const skipped = Number(result?.skipped || 0);
+    const errors = Array.isArray(result?.errors) ? result.errors : [];
 
     const message = `Import complete: ${created} created, ${restored} restored, ${skipped} skipped${errors.length ? `, ${errors.length} errors` : ''}.`;
     showToast(message, errors.length ? 'info' : 'success');
@@ -2145,7 +2146,9 @@ async function printPayslip(payslipId) {
 
   const dynamicFields = [
     ['hdmf_loan', 'HDMF Loan'],
+    ['mp2', 'MP2'],
     ['fip_g', 'FIP-G'],
+    ['sri_g', 'SRI-G'],
     ['fire_h', 'FIRE-H'],
     ['fire_n', 'FIRE-N'],
     ['honor_disallow', 'HONOR DISALLOW'],
@@ -2156,6 +2159,8 @@ async function printPayslip(payslipId) {
     ['fine', 'FINE'],
     ['help', 'HELP'],
     ['pvb_ln', 'PVB LN'],
+    ['aom_2013_014', 'AOM 2013-014'],
+    ['cna_2009', 'CNA 2009'],
     ['dorm_fee', 'DORM FEE'],
   ];
 
@@ -2167,7 +2172,7 @@ async function printPayslip(payslipId) {
       return `
       <tr>
         <td class="c1"></td>
-        <td class="c2" style="padding-left:40px">${escapeHtml(label)}</td>
+        <td class="c2" style="padding-left: 50px">${escapeHtml(label)}</td>
         <td class="c3">${escapeHtml(value)}</td>
       </tr>`;
     })

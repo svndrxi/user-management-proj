@@ -354,7 +354,7 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:65px;">Educ Child</td>
-        <td class="c3">{{ $educChild ?? '' }}</td>
+        <td class="c3">__educ_ln__</td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -455,7 +455,7 @@
       <tr class="total-row">
         <td class="c1"></td>
         <td class="c2" style="font-weight: bold; padding-left: 50px;">Total Deductions</td>
-        <td class="c3" style="font-weight:bold;">{{ $totalDeductions ?? '7,470.00' }}</td>
+        <td class="c3" style="font-weight:bold;">__total_deductions__</td>
       </tr>
     </table>
 
