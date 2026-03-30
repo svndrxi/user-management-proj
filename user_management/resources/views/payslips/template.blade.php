@@ -340,7 +340,7 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIB</td>
-        <td class="c3">__fip_g__</td>
+        <td class="c3"></td>
       </tr>
       <tr>
         <td class="c1"></td>
@@ -350,7 +350,7 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">__mri_h__</td>
+        <td class="c3"></td>
       </tr>
       <tr>
         <td class="c1"></td>
@@ -376,7 +376,7 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIB</td>
-        <td class="c3">__fip_g__</td>
+        <td class="c3"></td>
       </tr>
       <tr>
         <td class="c1"></td>
@@ -386,12 +386,12 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">__mri_n__</td>
+        <td class="c3"></td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Multi-purpose Loan</td>
-        <td class="c3">__hdmf_loan__</td>
+        <td class="c3"></td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -440,13 +440,15 @@
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIRE</td>
-        <td class="c3">__fire_total__</td>
+        <td class="c3"></td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">__mri_total__</td>
+        <td class="c3"></td>
       </tr>
+
+      <!--__DYNAMIC_FIELDS__-->
 
       <tr class="spacer"><td colspan="3"></td></tr>
 

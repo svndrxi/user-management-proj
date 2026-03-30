@@ -2030,6 +2030,12 @@ function formatMoney(value) {
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+function formatMoneyBlankZero(value) {
+  const n = toNumber(value);
+  if (n === null || n === 0) return '';
+  return formatMoney(n);
+}
+
 function formatLongDate(isoDate) {
   if (!isoDate) return '';
   const normalized = String(isoDate).slice(0, 10);
@@ -2082,9 +2088,6 @@ async function printPayslip(payslipId) {
   const pay15Iso = p['15th_dop'] ? String(p['15th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 14);
   const pay30Iso = p['30th_dop'] ? String(p['30th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 28);
 
-  const fireTotal = (toNumber(p.fire_h) || 0) + (toNumber(p.fire_n) || 0);
-  const mriTotal = (toNumber(p.mri_h) || 0) + (toNumber(p.mri_n) || 0);
-
   const tokenValues = {
     employee_id: p.employee_id || '',
     name: p.name || '',
@@ -2092,55 +2095,86 @@ async function printPayslip(payslipId) {
     designation: p.designation || '',
     pay_period_label: formatPayPeriodLabel(payPeriodIso),
 
-    monthly_salary: formatMoney(p.monthly_salary),
-    pera: formatMoney(p.pera),
-    gross_amount: formatMoney(p.gross_amount),
+    monthly_salary: formatMoneyBlankZero(p.monthly_salary),
+    pera: formatMoneyBlankZero(p.pera),
+    gross_amount: formatMoneyBlankZero(p.gross_amount),
 
-    gsis_premium: formatMoney(p.gsis_premium),
-    tax_withheld: formatMoney(p.tax_withheld),
-    philhealth: formatMoney(p.philhealth),
-    hdmf_premium: formatMoney(p.hdmf_premium),
+    gsis_premium: formatMoneyBlankZero(p.gsis_premium),
+    tax_withheld: formatMoneyBlankZero(p.tax_withheld),
+    philhealth: formatMoneyBlankZero(p.philhealth),
+    hdmf_premium: formatMoneyBlankZero(p.hdmf_premium),
 
-    conso_loan: formatMoney(p.conso_loan),
-    policy_loan: formatMoney(p.policy_loan),
-    hdmf_loan: formatMoney(p.hdmf_loan),
-    opt_pol_ln: formatMoney(p.opt_pol_ln),
-    uoli: formatMoney(p.uoli),
-    gfal_ii: formatMoney(p.gfal_ii),
-    mpl: formatMoney(p.mpl),
-    mpl_lite: formatMoney(p.mpl_lite),
-    comp_ln: formatMoney(p.comp_ln),
-    emer_ln: formatMoney(p.emer_ln),
-    ecash_adv: formatMoney(p.ecash_adv),
-    rel: formatMoney(p.rel),
-    fip_g: formatMoney(p.fip_g),
-    sri_g: formatMoney(p.sri_g),
-    mri_h: formatMoney(p.mri_h),
-    educ_ln: formatMoney(p.educ_ln),
+    conso_loan: formatMoneyBlankZero(p.conso_loan),
+    policy_loan: formatMoneyBlankZero(p.policy_loan),
+    hdmf_loan: formatMoneyBlankZero(p.hdmf_loan),
+    opt_pol_ln: formatMoneyBlankZero(p.opt_pol_ln),
+    uoli: formatMoneyBlankZero(p.uoli),
+    gfal_ii: formatMoneyBlankZero(p.gfal_ii),
+    mpl: formatMoneyBlankZero(p.mpl),
+    mpl_lite: formatMoneyBlankZero(p.mpl_lite),
+    comp_ln: formatMoneyBlankZero(p.comp_ln),
+    emer_ln: formatMoneyBlankZero(p.emer_ln),
+    ecash_adv: formatMoneyBlankZero(p.ecash_adv),
+    rel: formatMoneyBlankZero(p.rel),
+    fip_g: formatMoneyBlankZero(p.fip_g),
+    sri_g: formatMoneyBlankZero(p.sri_g),
+    mri_h: formatMoneyBlankZero(p.mri_h),
+    educ_ln: formatMoneyBlankZero(p.educ_ln),
 
-    hdmf_cal: formatMoney(p.hdmf_cal),
-    hdmg_hsng: formatMoney(p.hdmg_hsng),
-    mri_n: formatMoney(p.mri_n),
-    landbank_loan: formatMoney(p.landbank_loan),
-    lraea: formatMoney(p.lraea),
-    gabay: formatMoney(p.gabay),
-    nards: formatMoney(p.nards),
-    lraecc: formatMoney(p.lraecc),
-    nhfmc: formatMoney(p.nhfmc),
-    fire_total: formatMoney(fireTotal),
-    mri_total: formatMoney(mriTotal),
+    hdmf_cal: formatMoneyBlankZero(p.hdmf_cal),
+    hdmg_hsng: formatMoneyBlankZero(p.hdmg_hsng),
+    mri_n: formatMoneyBlankZero(p.mri_n),
+    landbank_loan: formatMoneyBlankZero(p.landbank_loan),
+    lraea: formatMoneyBlankZero(p.lraea),
+    gabay: formatMoneyBlankZero(p.gabay),
+    nards: formatMoneyBlankZero(p.nards),
+    lraecc: formatMoneyBlankZero(p.lraecc),
+    nhfmc: formatMoneyBlankZero(p.nhfmc),
 
-    total_deductions: formatMoney(p.total_deductions),
-    net_pay: formatMoney(p.net_pay),
+    total_deductions: formatMoneyBlankZero(p.total_deductions),
+    net_pay: formatMoneyBlankZero(p.net_pay),
     '15th_dop': formatLongDate(pay15Iso),
     '30th_dop': formatLongDate(pay30Iso),
-    pay_15th: formatMoney(p.pay_15th),
-    pay_30th: formatMoney(p.pay_30th),
+    pay_15th: formatMoneyBlankZero(p.pay_15th),
+    pay_30th: formatMoneyBlankZero(p.pay_30th),
   };
 
   Object.entries(tokenValues).forEach(([key, value]) => {
     html = html.split(`__${key}__`).join(escapeHtml(value));
   });
+
+  const dynamicFields = [
+    ['hdmf_loan', 'HDMF Loan'],
+    ['fip_g', 'FIP-G'],
+    ['fire_h', 'FIRE-H'],
+    ['fire_n', 'FIRE-N'],
+    ['honor_disallow', 'HONOR DISALLOW'],
+    ['ltcp_disallow', 'LTCP DISALLOW'],
+    ['lwop', 'LWOP'],
+    ['mri_h', 'MRI-H'],
+    ['mri_n', 'MRI-N'],
+    ['fine', 'FINE'],
+    ['help', 'HELP'],
+    ['pvb_ln', 'PVB LN'],
+    ['dorm_fee', 'DORM FEE'],
+  ];
+
+  const dynamicRowsHtml = dynamicFields
+    .map(([field, label]) => {
+      const raw = toNumber(p[field]);
+      if (raw === null || raw <= 0) return '';
+      const value = formatMoney(raw);
+      return `
+      <tr>
+        <td class="c1"></td>
+        <td class="c2" style="padding-left:40px">${escapeHtml(label)}</td>
+        <td class="c3">${escapeHtml(value)}</td>
+      </tr>`;
+    })
+    .filter(Boolean)
+    .join('');
+
+  html = html.split('<!--__DYNAMIC_FIELDS__-->').join(dynamicRowsHtml);
 
   const printWin = window.open('', '_blank', 'width=850,height=750');
   if (!printWin) {
