@@ -150,16 +150,15 @@ function monthFromPayDate(dateStr) {
 }
 
 function normalizePayslip(p) {
-  const payDate = String(p.payroll_date || p.payrollDate || '').slice(0, 10);
+  const payPeriod = String(p.pay_period || p.payPeriod || p.payroll_date || p.payrollDate || '').slice(0, 10);
 
   return {
     id: p.id,
     empId: p.employee_id || p.emp_id || '',
-    firstName: p.first_name || '',
-    middleName: p.middle_name || '',
-    lastName: p.last_name || '',
-    month: monthFromPayDate(payDate),
-    payDate,
+    name: p.name || '',
+    department: p.department || '',
+    designation: p.designation || '',
+    payPeriod,
   };
 }
 
@@ -1556,7 +1555,9 @@ function getFilteredPayslips() {
   if (q) {
     data = data.filter(p =>
       p.empId.toLowerCase().includes(q) ||
-      `${p.firstName} ${p.middleName} ${p.lastName}`.toLowerCase().includes(q)
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.department || '').toLowerCase().includes(q) ||
+      (p.designation || '').toLowerCase().includes(q)
     );
   }
   return data;
@@ -1572,7 +1573,6 @@ function renderPayslips() {
   tbody.innerHTML = '';
 
   pageData.forEach(p => {
-    const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
@@ -1584,8 +1584,10 @@ function renderPayslips() {
         />
       </td>
       <td>${p.empId}</td>
-      <td>${displayName}</td>
-      <td>${formatPayDate(p.payDate)}</td>
+      <td>${p.name || ''}</td>
+      <td>${p.department || ''}</td>
+      <td>${p.designation || ''}</td>
+      <td>${formatPayDate(p.payPeriod)}</td>
       <td>
         <div class="action-btns">
           <button class="btn-edit" onclick="openEditPayslipModal(${p.id})" title="Edit">
@@ -1610,7 +1612,7 @@ function renderPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="5"></td>';
+    tr.innerHTML = '<td colspan="7"></td>';
     tbody.appendChild(tr);
   }
 
@@ -1626,7 +1628,9 @@ function getFilteredArchivedPayslips() {
   if (q) {
     data = data.filter(p =>
       p.empId.toLowerCase().includes(q) ||
-      `${p.firstName} ${p.middleName} ${p.lastName}`.toLowerCase().includes(q)
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.department || '').toLowerCase().includes(q) ||
+      (p.designation || '').toLowerCase().includes(q)
     );
   }
   return data;
@@ -1642,7 +1646,6 @@ function renderArchivedPayslips() {
   tbody.innerHTML = '';
 
   pageData.forEach(p => {
-    const displayName = `${p.lastName}, ${p.firstName}${p.middleName ? ' ' + p.middleName.charAt(0) + '.' : ''}`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
@@ -1654,8 +1657,10 @@ function renderArchivedPayslips() {
         />
       </td>
       <td>${p.empId}</td>
-      <td>${displayName}</td>
-      <td>${formatPayDate(p.payDate)}</td>
+      <td>${p.name || ''}</td>
+      <td>${p.department || ''}</td>
+      <td>${p.designation || ''}</td>
+      <td>${formatPayDate(p.payPeriod)}</td>
       <td>
         <div class="action-btns">
           <button class="btn-unarchive" onclick="openUnarchivePayslipModal(${p.id})">Unarchive</button>
@@ -1669,7 +1674,7 @@ function renderArchivedPayslips() {
   for (let i = 0; i < emptyCount; i++) {
     const tr = document.createElement('tr');
     tr.className = 'empty-row';
-    tr.innerHTML = '<td colspan="5"></td>';
+    tr.innerHTML = '<td colspan="7"></td>';
     tbody.appendChild(tr);
   }
 
@@ -1684,37 +1689,44 @@ function openEditPayslipModal(payslipId) {
   const p = payslipsData.find(ps => ps.id === payslipId);
   if (!p) return;
   selectedPayslip = p;
-  document.getElementById('editPayslipFirstName').value = p.firstName;
-  document.getElementById('editPayslipMiddleName').value = p.middleName || '';
-  document.getElementById('editPayslipLastName').value = p.lastName;
+  document.getElementById('editPayslipName').value = p.name || '';
   document.getElementById('editPayslipEmpId').value = p.empId;
-  document.getElementById('editPayslipMonth').value = p.month;
-  document.getElementById('editPayslipDate').value = p.payDate || '';
+  document.getElementById('editPayslipDepartment').value = p.department || '';
+  document.getElementById('editPayslipDesignation').value = p.designation || '';
+  document.getElementById('editPayslipPayPeriod').value = p.payPeriod || '';
   openModal('editPayslipModal');
 }
 
-function saveEditPayslip() {
+async function saveEditPayslip() {
   if (!selectedPayslip) return;
-  const firstName = document.getElementById('editPayslipFirstName').value.trim();
-  const middleName = document.getElementById('editPayslipMiddleName').value.trim();
-  const lastName = document.getElementById('editPayslipLastName').value.trim();
+  const name = document.getElementById('editPayslipName').value.trim();
   const empId = document.getElementById('editPayslipEmpId').value.trim();
-  const month = document.getElementById('editPayslipMonth').value;
-  const payDate = document.getElementById('editPayslipDate').value;
+  const department = document.getElementById('editPayslipDepartment').value.trim();
+  const designation = document.getElementById('editPayslipDesignation').value.trim();
+  const payPeriod = document.getElementById('editPayslipPayPeriod').value;
 
-  if (!firstName || !lastName || !empId || !month) {
+  if (!name || !empId || !designation || !payPeriod) {
     showToast('Please fill in all required fields.', 'error');
     return;
   }
 
-  const idx = payslipsData.findIndex(ps => ps.id === selectedPayslip.id);
-  if (idx !== -1) {
-    payslipsData[idx] = { ...payslipsData[idx], firstName, middleName, lastName, empId, month, payDate };
+  try {
+    await dataSource.payslips.update(selectedPayslip.id, {
+      employee_id: empId,
+      name,
+      department: department || null,
+      designation,
+      pay_period: payPeriod,
+    });
+
+    closeModal('editPayslipModal');
+    selectedPayslip = null;
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast('Payslip updated successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to update payslip.', 'error');
   }
-  closeModal('editPayslipModal');
-  renderPayslips();
-  showToast('Payslip updated successfully.', 'success');
-  selectedPayslip = null;
 }
 
 // ===== ARCHIVE PAYSLIP =====
@@ -1722,7 +1734,7 @@ function openArchivePayslipModal(payslipId) {
   selectedPayslip = payslipsData.find(ps => ps.id === payslipId);
   if (!selectedPayslip) return;
   document.getElementById('archivePayslipName').textContent =
-    `${selectedPayslip.firstName} ${selectedPayslip.lastName} (${selectedPayslip.month})`;
+    `${selectedPayslip.name || selectedPayslip.empId} (${formatPayDate(selectedPayslip.payPeriod)})`;
   openModal('archivePayslipModal');
 }
 
@@ -1749,7 +1761,7 @@ function openDeletePayslipModal(payslipId) {
   payslipToDelete = payslipsData.find(ps => ps.id === payslipId);
   if (!payslipToDelete) return;
   document.getElementById('deletePayslipName').textContent =
-    `${payslipToDelete.firstName} ${payslipToDelete.lastName}`;
+    `${payslipToDelete.name || payslipToDelete.empId}`;
   openModal('deletePayslipModal');
 }
 
@@ -1776,7 +1788,7 @@ function openUnarchivePayslipModal(payslipId) {
   selectedArchivedPayslip = archivedPayslips.find(ps => ps.id === payslipId);
   if (!selectedArchivedPayslip) return;
   document.getElementById('unarchivePayslipName').textContent =
-    `${selectedArchivedPayslip.firstName} ${selectedArchivedPayslip.lastName} (${selectedArchivedPayslip.month})`;
+    `${selectedArchivedPayslip.name || selectedArchivedPayslip.empId} (${formatPayDate(selectedArchivedPayslip.payPeriod)})`;
   openModal('unarchivePayslipModal');
 }
 
@@ -2002,19 +2014,48 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function printPayslip(payslipId) {
-  const p = payslipsData.find(ps => ps.id === payslipId);
-  if (!p) return;
+function toNumber(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const normalized = s.replace(/,/g, '').replace(/[^\d.-]/g, '');
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
 
-  const fullName = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ');
-  const payDate = p.payDate ? new Date(`${p.payDate}T00:00:00`) : new Date();
-  const year = Number.isNaN(payDate.getTime()) ? new Date().getFullYear() : payDate.getFullYear();
-  const monthName = p.month || payDate.toLocaleString('en-US', { month: 'long' });
-  const payPeriod = `${monthName} ${year}`;
-  const payout15 = `${monthName} 14, ${year}`;
-  const payout30 = `${monthName} 28, ${year}`;
-  const employeeNo = p.empId || '20260302';
+function formatMoney(value) {
+  const n = toNumber(value);
+  if (n === null) return '';
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
 
+function formatLongDate(isoDate) {
+  if (!isoDate) return '';
+  const normalized = String(isoDate).slice(0, 10);
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return normalized;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatPayPeriodLabel(isoDate) {
+  if (!isoDate) return '';
+  const normalized = String(isoDate).slice(0, 10);
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return normalized;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+}
+
+function computePayoutDate(payPeriodIso, day) {
+  if (!payPeriodIso) return '';
+  const normalized = String(payPeriodIso).slice(0, 10);
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setDate(day);
+  return d.toISOString().slice(0, 10);
+}
+
+async function printPayslip(payslipId) {
   const templateElement = document.getElementById('payslipPrintTemplate');
   if (!templateElement) {
     showToast('Payslip print template is missing in the page.', 'error');
@@ -2027,22 +2068,79 @@ function printPayslip(payslipId) {
     return;
   }
 
-  const replacements = [
-    ['April 2025', payPeriod],
-    ['JUAN DELA CRUZ', fullName || 'JUAN DELA CRUZ'],
-    ['20260302', employeeNo],
-    ['April 14, 2025', payout15],
-    ['April 28, 2025', payout30],
-  ];
+  let record;
+  try {
+    record = await dataSource.payslips.get(payslipId);
+  } catch (e) {
+    showToast(e.message || 'Failed to load payslip from server.', 'error');
+    return;
+  }
 
-  replacements.forEach(([search, value]) => {
-    html = html.split(search).join(escapeHtml(value));
+  const p = record?.data ?? record ?? {};
+  const payPeriodIso = String(p.pay_period || p.payPeriod || '').slice(0, 10);
+
+  const pay15Iso = p['15th_dop'] ? String(p['15th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 14);
+  const pay30Iso = p['30th_dop'] ? String(p['30th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 28);
+
+  const fireTotal = (toNumber(p.fire_h) || 0) + (toNumber(p.fire_n) || 0);
+  const mriTotal = (toNumber(p.mri_h) || 0) + (toNumber(p.mri_n) || 0);
+
+  const tokenValues = {
+    employee_id: p.employee_id || '',
+    name: p.name || '',
+    department: p.department || '',
+    designation: p.designation || '',
+    pay_period_label: formatPayPeriodLabel(payPeriodIso),
+
+    monthly_salary: formatMoney(p.monthly_salary),
+    pera: formatMoney(p.pera),
+    gross_amount: formatMoney(p.gross_amount),
+
+    gsis_premium: formatMoney(p.gsis_premium),
+    tax_withheld: formatMoney(p.tax_withheld),
+    philhealth: formatMoney(p.philhealth),
+    hdmf_premium: formatMoney(p.hdmf_premium),
+
+    conso_loan: formatMoney(p.conso_loan),
+    policy_loan: formatMoney(p.policy_loan),
+    hdmf_loan: formatMoney(p.hdmf_loan),
+    opt_pol_ln: formatMoney(p.opt_pol_ln),
+    uoli: formatMoney(p.uoli),
+    gfal_ii: formatMoney(p.gfal_ii),
+    mpl: formatMoney(p.mpl),
+    mpl_lite: formatMoney(p.mpl_lite),
+    comp_ln: formatMoney(p.comp_ln),
+    emer_ln: formatMoney(p.emer_ln),
+    ecash_adv: formatMoney(p.ecash_adv),
+    rel: formatMoney(p.rel),
+    fip_g: formatMoney(p.fip_g),
+    sri_g: formatMoney(p.sri_g),
+    mri_h: formatMoney(p.mri_h),
+    educ_ln: formatMoney(p.educ_ln),
+
+    hdmf_cal: formatMoney(p.hdmf_cal),
+    hdmg_hsng: formatMoney(p.hdmg_hsng),
+    mri_n: formatMoney(p.mri_n),
+    landbank_loan: formatMoney(p.landbank_loan),
+    lraea: formatMoney(p.lraea),
+    gabay: formatMoney(p.gabay),
+    nards: formatMoney(p.nards),
+    lraecc: formatMoney(p.lraecc),
+    nhfmc: formatMoney(p.nhfmc),
+    fire_total: formatMoney(fireTotal),
+    mri_total: formatMoney(mriTotal),
+
+    total_deductions: formatMoney(p.total_deductions),
+    net_pay: formatMoney(p.net_pay),
+    '15th_dop': formatLongDate(pay15Iso),
+    '30th_dop': formatLongDate(pay30Iso),
+    pay_15th: formatMoney(p.pay_15th),
+    pay_30th: formatMoney(p.pay_30th),
+  };
+
+  Object.entries(tokenValues).forEach(([key, value]) => {
+    html = html.split(`__${key}__`).join(escapeHtml(value));
   });
-
-  html = html.replace(
-    '<title>Payroll Payment Slip</title>',
-    `<title>Payroll Payment Slip - ${escapeHtml(fullName || employeeNo)}</title>`
-  );
 
   const printWin = window.open('', '_blank', 'width=850,height=750');
   if (!printWin) {

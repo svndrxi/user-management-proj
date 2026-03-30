@@ -274,14 +274,96 @@ class PayslipApiController extends Controller
 
             foreach ($rows as $rowIndex => $row) {
                 try {
-                    $employeeId = trim((string) ($row['employee_id'] ?? $row['emp_id'] ?? $row['employee_number'] ?? $row['user_id'] ?? ''));
-                    $payPeriod = $row['pay_period'] ?? $row['payroll_date'] ?? $row['pay_date'] ?? $row['paydate'] ?? null;
-                    $name = isset($row['name']) ? trim((string) $row['name']) : '';
-                    $department = isset($row['department']) ? trim((string) $row['department']) : '';
-                    $designation = isset($row['designation']) ? trim((string) $row['designation']) : '';
+                    $aliases = [
+                        'employee_id' => ['employee_id', 'emp_id', 'employee_number', 'employeenumber', 'employee_no', 'user_id'],
+                        'pay_period' => ['pay_period', 'payperiod', 'payroll_date', 'pay_date', 'paydate'],
+                        'name' => ['name', 'employee_name', 'employees_name'],
+                        'department' => ['department', 'dept'],
+                        'designation' => ['designation', 'position'],
 
-                    if ($employeeId === '' || empty($payPeriod)) {
+                        // Earnings
+                        'monthly_salary' => ['monthly_salary', 'salary_basic', 'salarybasic'],
+                        'pera' => ['pera'],
+                        'gross_amount' => ['gross_amount', 'gross_earnings'],
+
+                        // Deductions (common aliases from template/mapping)
+                        'gsis_premium' => ['gsis_premium', 'gsis_membership_ins'],
+                        'tax_withheld' => ['tax_withheld', 'withholding_tax'],
+                        'philhealth' => ['philhealth', 'philhealth_contribution'],
+                        'hdmf_premium' => ['hdmf_premium', 'hdmf_contribution'],
+                        'conso_loan' => ['conso_loan', 'gsis_conso_salary_loan', 'conso_salary_loan'],
+                        'policy_loan' => ['policy_loan'],
+                        'hdmf_loan' => ['hdmf_loan', 'mp2', 'multi_purpose_loan', 'multipurpose_loan'],
+                        'opt_pol_ln' => ['opt_pol_ln', 'optional_policy_loan'],
+                        'uoli' => ['uoli'],
+                        'gfal_ii' => ['gfal_ii', 'gfal_ii_'],
+                        'mpl' => ['mpl'],
+                        'mpl_lite' => ['mpl_lite'],
+                        'comp_ln' => ['comp_ln', 'comp_ln_'],
+                        'emer_ln' => ['emer_ln', 'emergency_loan'],
+                        'ecash_adv' => ['ecash_adv', 'cash_advance_loan'],
+                        'rel' => ['rel'],
+                        'fip_g' => ['fip_g', 'fib'],
+                        'sri_g' => ['sri_g', 'sri'],
+                        'mri_h' => ['mri_h', 'mri'],
+                        'educ_ln' => ['educ_ln', 'educ_child'],
+                        'hdmf_cal' => ['hdmf_cal', 'calamity_loan'],
+                        'hdmg_hsng' => ['hdmg_hsng', 'housing_loan'],
+                        'mri_n' => ['mri_n'],
+                        'landbank_loan' => ['landbank_loan', 'land_bank_loan'],
+                        'lraea' => ['lraea'],
+                        'gabay' => ['gabay'],
+                        'nards' => ['nards'],
+                        'lraecc' => ['lraecc'],
+                        'nhfmc' => ['nhfmc', 'nhmfc'],
+                        'fire_h' => ['fire_h'],
+                        'fire_n' => ['fire_n'],
+
+                        'total_deductions' => ['total_deductions', 'total_deduction'],
+                        'net_pay' => ['net_pay', 'netpay'],
+                        'pay_15th' => ['pay_15th', '15th', 'first_payout_amount', 'firstpayoutamount'],
+                        'pay_30th' => ['pay_30th', '30th', 'second_payout_amount', 'secondpayoutamount'],
+                        '15th_dop' => ['15th_dop', 'first_payout_date', 'firstpayoutdate'],
+                        '30th_dop' => ['30th_dop', 'second_payout_date', 'secondpayoutdate'],
+                    ];
+
+                    $get = function (string $field) use ($row, $aliases) {
+                        $keys = $aliases[$field] ?? [$field];
+                        foreach ($keys as $key) {
+                            if (! array_key_exists($key, $row)) {
+                                continue;
+                            }
+                            $value = $row[$key];
+                            if (is_string($value)) {
+                                $value = trim($value);
+                            }
+                            if ($value === '' || $value === null) {
+                                continue;
+                            }
+                            return $value;
+                        }
+                        return null;
+                    };
+
+                    $employeeId = trim((string) ($get('employee_id') ?? ''));
+                    $payPeriod = $get('pay_period');
+                    $name = trim((string) ($get('name') ?? ''));
+                    $department = trim((string) ($get('department') ?? ''));
+                    $designation = trim((string) ($get('designation') ?? ''));
+
+                    if ($employeeId === '' && empty($payPeriod)) {
                         $skipped++;
+                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing EMPLOYEE NUMBER and PAYPERIOD.'];
+                        continue;
+                    }
+                    if ($employeeId === '') {
+                        $skipped++;
+                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing EMPLOYEE NUMBER.'];
+                        continue;
+                    }
+                    if (empty($payPeriod)) {
+                        $skipped++;
+                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing PAYPERIOD.'];
                         continue;
                     }
 
@@ -289,6 +371,88 @@ class PayslipApiController extends Controller
                     if ($dateString === null) {
                         $errors[] = ['row' => $rowIndex, 'error' => "Invalid pay_period for Employee ID {$employeeId}."];
                         continue;
+                    }
+
+                    $payload = [
+                        'employee_id' => $employeeId,
+                        'pay_period' => $dateString,
+                        'name' => $name !== '' ? $name : $employeeId,
+                        'department' => $department !== '' ? $department : null,
+                        'designation' => $designation !== '' ? $designation : 'N/A',
+                        'is_archived' => false,
+                    ];
+
+                    $numericFields = [
+                        'monthly_salary',
+                        'pera',
+                        'gross_amount',
+                        'gsis_premium',
+                        'hdmf_premium',
+                        'tax_withheld',
+                        'philhealth',
+                        'conso_loan',
+                        'policy_loan',
+                        'hdmf_loan',
+                        'opt_pol_ln',
+                        'uoli',
+                        'gfal_ii',
+                        'mpl',
+                        'mpl_lite',
+                        'comp_ln',
+                        'emer_ln',
+                        'ecash_adv',
+                        'educ_ln',
+                        'fip_g',
+                        'sri_g',
+                        'mri_h',
+                        'mri_n',
+                        'fire_h',
+                        'fire_n',
+                        'hdmf_cal',
+                        'hdmg_hsng',
+                        'honor_disallow',
+                        'ltcp_disallow',
+                        'lwop',
+                        'rel',
+                        'landbank_loan',
+                        'lraea',
+                        'gabay',
+                        'nards',
+                        'lraecc',
+                        'nhfmc',
+                        'fine',
+                        'help',
+                        'pvb_ln',
+                        'aom_2013_014',
+                        'cna_2009',
+                        'dorm_fee',
+                        'total_deductions',
+                        'net_pay',
+                        'pay_15th',
+                        'pay_30th',
+                    ];
+
+                    foreach ($numericFields as $field) {
+                        $value = $get($field);
+                        if ($value === null) {
+                            continue;
+                        }
+                        $number = $this->normalizeNumber($value);
+                        if ($number === null) {
+                            continue;
+                        }
+                        $payload[$field] = $number;
+                    }
+
+                    foreach (['15th_dop', '30th_dop'] as $field) {
+                        $value = $get($field);
+                        if ($value === null) {
+                            continue;
+                        }
+                        $date = $this->normalizePayrollDate($value);
+                        if ($date !== null) {
+                            $payload[$field] = $date;
+                        }
                     }
 
                     $existing = Payslip::query()
@@ -310,17 +474,18 @@ class PayslipApiController extends Controller
                             $needsUpdate = true;
                         }
 
-                        if ($name !== '' && empty($existing->name)) {
-                            $existing->name = $name;
-                            $needsUpdate = true;
-                        }
-                        if ($department !== '' && empty($existing->department)) {
-                            $existing->department = $department;
-                            $needsUpdate = true;
-                        }
-                        if ($designation !== '' && empty($existing->designation)) {
-                            $existing->designation = $designation;
-                            $needsUpdate = true;
+                        foreach ($payload as $field => $value) {
+                            if (in_array($field, ['employee_id', 'pay_period', 'is_archived'], true)) {
+                                continue;
+                            }
+                            if ($value === null || $value === '') {
+                                continue;
+                            }
+                            $current = $existing->getAttribute($field);
+                            if ($current === null || $current === '') {
+                                $existing->setAttribute($field, $value);
+                                $needsUpdate = true;
+                            }
                         }
 
                         if ($needsUpdate) {
@@ -332,14 +497,7 @@ class PayslipApiController extends Controller
                         continue;
                     }
 
-                    Payslip::query()->create([
-                        'employee_id' => $employeeId,
-                        'pay_period' => $dateString,
-                        'name' => $name !== '' ? $name : $employeeId,
-                        'department' => $department !== '' ? $department : null,
-                        'designation' => $designation !== '' ? $designation : 'N/A',
-                        'is_archived' => false,
-                    ]);
+                    Payslip::query()->create($payload);
 
                     $created++;
                 } catch (\Throwable $e) {
@@ -484,5 +642,44 @@ class PayslipApiController extends Controller
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function normalizeNumber(mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return is_finite((float) $value) ? (float) $value : null;
+        }
+
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+
+        $isNegative = false;
+        if (preg_match('/^\\(.*\\)$/', $string) === 1) {
+            $isNegative = true;
+            $string = trim($string, " ()\t\n\r\0\x0B");
+        }
+
+        $string = str_replace([',', '₱', '$'], '', $string);
+        $string = preg_replace('/[^0-9.\\-]/', '', $string) ?? '';
+        if ($string === '' || $string === '-' || $string === '.') {
+            return null;
+        }
+
+        if (! is_numeric($string)) {
+            return null;
+        }
+
+        $number = (float) $string;
+        if ($isNegative) {
+            $number *= -1;
+        }
+
+        return is_finite($number) ? $number : null;
     }
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LRA_Payslip_{{ $last_name ?? 'Employee' }}</title>
+  <title>LRA_Payslip___employee_id__</title>
   <style>
     @page { size: A4; margin: 0.4in; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -194,7 +194,7 @@
     </div>
     <div class="slip-title">PAYROLL PAYMENT SLIP</div>
     <br>
-    <div class="slip-dept">INFO &amp; COMMUNICATIONS TECHNOLOGY</div>
+    <div class="slip-dept">__department__</div>
   </div>
 
   <!-- CONTENT -->
@@ -205,19 +205,19 @@
       <tr>
         <td class="label">Pay Period</td>
         <td class="colon">:</td>
-        <td>{{ $payPeriod ?? 'April 2025' }}</td>
+        <td>__pay_period_label__</td>
       </tr>
       <tr>
-        <td class="label">Employees Name</td>
+        <td class="label">Employee's Name</td>
         <td class="colon">:</td>
-        <td>{{ $employeeName ?? 'JUAN DELA CRUZ' }}</td>
+        <td>__name__</td>
       </tr>
       <tr>
         <td class="label">Position</td>
         <td class="colon">:</td>
-        <td>{{ $position ?? 'COMP PROGRAMMER II' }}</td>
+        <td>__designation__</td>
         <td class="emp-no-label">Employee No:</td>
-        <td class="emp-no-val">{{ $employeeNo ?? '20260302' }}</td>
+        <td class="emp-no-val">__employee_id__</td>
       </tr>
     </table>
 
@@ -229,23 +229,23 @@
     <table class="earnings-table">
       <tr>
         <td class="col-label">Salary Basic</td>
-        <td class="col-amount">{{ $salaryBasic ?? '50,413.00' }}</td>
+        <td class="col-amount">__monthly_salary__</td>
       </tr>
       <tr>
         <td class="col-label">Salary Increase</td>
-        <td class="col-amount">{{ $salaryIncrease ?? '' }}</td>
+        <td class="col-amount"></td>
       </tr>
       <tr>
         <td class="col-label">Personnel Economic Relief Allowance</td>
-        <td class="col-amount">{{ $pera ?? '2,000.00' }}</td>
+        <td class="col-amount">__pera__</td>
       </tr>
       <tr>
         <td class="col-label">Others: (Specify)</td>
-        <td class="col-amount">{{ $otherEarnings ?? '' }}</td>
+        <td class="col-amount"></td>
       </tr>
       <tr class="gross-row">
         <td class="col-label" style="text-align:center;">Gross Earnings</td>
-        <td class="col-amount">{{ $grossEarnings ?? '52,513.00' }}</td>
+        <td class="col-amount">__gross_amount__</td>
       </tr>
     </table>
 
@@ -260,23 +260,23 @@
       <!-- ── Direct deductions: label spans c1+c2 ── -->
       <tr>
         <td colspan="2">GSIS Membership Ins</td>
-        <td class="c3">{{ $gsisMembershipIns ?? '3,727.17' }}</td>
+        <td class="c3">__gsis_premium__</td>
       </tr>
       <tr>
         <td colspan="2">Withholding Tax</td>
-        <td class="c3">{{ $withholdingTax ?? '2,498.50' }}</td>
+        <td class="c3">__tax_withheld__</td>
       </tr>
       <tr>
         <td colspan="2">PHILHEALTH Contribution</td>
-        <td class="c3">{{ $philhealthContribution ?? '1,035.32' }}</td>
+        <td class="c3">__philhealth__</td>
       </tr>
       <tr>
         <td colspan="2">HDMF Contribution</td>
-        <td class="c3">{{ $hdmfContribution ?? '200.00' }}</td>
+        <td class="c3">__hdmf_premium__</td>
       </tr>
       <tr>
         <td colspan="2">HDMF Contribution (Additional)</td>
-        <td class="c3">{{ $hdmfAdditional ?? '' }}</td>
+        <td class="c3"></td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -285,77 +285,77 @@
       <tr>
         <td class="c1">GSIS</td>
         <td class="c2">Conso/Salary Loan</td>
-        <td class="c3">{{ $gsisConsoSalaryLoan ?? '' }}</td>
+        <td class="c3">__conso_loan__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Policy Loan</td>
-        <td class="c3">{{ $policyLoan ?? '' }}</td>
+        <td class="c3">__policy_loan__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Optional Policy Loan</td>
-        <td class="c3">{{ $optionalPolicyLoan ?? '' }}</td>
+        <td class="c3">__opt_pol_ln__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">UOLI</td>
-        <td class="c3">{{ $uoli ?? '' }}</td>
+        <td class="c3">__uoli__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">GFAL II</td>
-        <td class="c3">{{ $gfalII ?? '' }}</td>
+        <td class="c3">__gfal_ii__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">MPL</td>
-        <td class="c3">{{ $mpl ?? '' }}</td>
+        <td class="c3">__mpl__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">MPL LITE</td>
-        <td class="c3">{{ $mplLite ?? '' }}</td>
+        <td class="c3">__mpl_lite__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Comp Ln</td>
-        <td class="c3">{{ $compLn ?? '' }}</td>
+        <td class="c3">__comp_ln__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Emergency Loan</td>
-        <td class="c3">{{ $emergencyLoan ?? '' }}</td>
+        <td class="c3">__emer_ln__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Cash Advance Loan</td>
-        <td class="c3">{{ $cashAdvanceLoan ?? '' }}</td>
+        <td class="c3">__ecash_adv__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">REL</td>
-        <td class="c3">{{ $rel ?? '' }}</td>
+        <td class="c3">__rel__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIB</td>
-        <td class="c3">{{ $fib1 ?? '' }}</td>
+        <td class="c3">__fip_g__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">SRI</td>
-        <td class="c3">{{ $sri1 ?? '' }}</td>
+        <td class="c3">__sri_g__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">{{ $mri1 ?? '' }}</td>
+        <td class="c3">__mri_h__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">Educ Child</td>
-        <td class="c3">{{ $educChild ?? '' }}</td>
+        <td class="c3">__educ_ln__</td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -366,32 +366,32 @@
       <tr>
         <td class="c1"></td>
         <td class="c2">Calamity Loan</td>
-        <td class="c3">{{ $calamityLoan ?? '' }}</td>
+        <td class="c3">__hdmf_cal__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Housing Loan</td>
-        <td class="c3"></td>
+        <td class="c3">__hdmg_hsng__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIB</td>
-        <td class="c3">{{ $fib2 ?? '' }}</td>
+        <td class="c3">__fip_g__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">SRI</td>
-        <td class="c3">{{ $sri2 ?? '' }}</td>
+        <td class="c3">__sri_g__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">{{ $mri2 ?? '' }}</td>
+        <td class="c3">__mri_n__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">Multi-purpose Loan</td>
-        <td class="c3"></td>
+        <td class="c3">__hdmf_loan__</td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -403,7 +403,7 @@
       <tr>
         <td class="c1"></td>
         <td class="c2">Land Bank Loan</td>
-        <td class="c3">{{ $landBankLoan ?? '' }}</td>
+        <td class="c3">__landbank_loan__</td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -415,37 +415,37 @@
       <tr>
         <td class="c1"></td>
         <td class="c2">LRAEA</td>
-        <td class="c3">{{ $lraea ?? '20.00' }}</td>
+        <td class="c3">__lraea__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">GABAY</td>
-        <td class="c3">{{ $gabay ?? '' }}</td>
+        <td class="c3">__gabay__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">NARDS</td>
-        <td class="c3">{{ $nards ?? '' }}</td>
+        <td class="c3">__nards__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">LRAECC</td>
-        <td class="c3">{{ $lraecc ?? '' }}</td>
+        <td class="c3">__lraecc__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2">NHMFC</td>
-        <td class="c3">{{ $nhmfc ?? '' }}</td>
+        <td class="c3">__nhfmc__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">FIRE</td>
-        <td class="c3">{{ $fire ?? '' }}</td>
+        <td class="c3">__fire_total__</td>
       </tr>
       <tr>
         <td class="c1"></td>
         <td class="c2" style="padding-left:20px;">MRI</td>
-        <td class="c3">{{ $mri3 ?? '' }}</td>
+        <td class="c3">__mri_total__</td>
       </tr>
 
       <tr class="spacer"><td colspan="3"></td></tr>
@@ -453,7 +453,7 @@
       <tr class="total-row">
         <td class="c1"></td>
         <td class="c2" style="text-align:center; font-weight:bold;">Total Deductions</td>
-        <td class="c3" style="font-weight:bold;">{{ $totalDeductions ?? '7,470.00' }}</td>
+        <td class="c3" style="font-weight:bold;">__total_deductions__</td>
       </tr>
     </table>
 
@@ -463,7 +463,7 @@
     <!-- NET PAY -->
     <div class="net-pay-section">
       <span>**Net Pay**</span>
-      <span>{{ $netPay ?? '45,003.00' }}</span>
+      <span>__net_pay__</span>
     </div>
 
     <!-- PAYOUT TABLE -->
@@ -478,13 +478,13 @@
       <tbody>
         <tr>
           <td>15th</td>
-          <td>{{ $firstPayoutDate ?? 'April 14, 2025' }}</td>
-          <td>{{ $firstPayoutAmount ?? '22,501.5' }}</td>
+          <td>__15th_dop__</td>
+          <td>__pay_15th__</td>
         </tr>
         <tr>
           <td>30th</td>
-          <td>{{ $secondPayoutDate ?? 'April 28, 2025' }}</td>
-          <td>{{ $secondPayoutAmount ?? '22,501.5' }}</td>
+          <td>__30th_dop__</td>
+          <td>__pay_30th__</td>
         </tr>
       </tbody>
     </table>

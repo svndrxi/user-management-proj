@@ -327,7 +327,9 @@
                   </th>
                   <th>Employee ID</th>
                   <th>Name</th>
-                  <th>Pay Date</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Pay Period</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -371,7 +373,9 @@
                   </th>
                   <th>Employee ID</th>
                   <th>Name</th>
-                  <th>Pay Date</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Pay Period</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -761,36 +765,19 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group">
-          <input type="text" id="editPayslipFirstName" placeholder="First Name" />
-        </div>
-        <div class="form-group">
-          <input type="text" id="editPayslipMiddleName" placeholder="Middle Name" />
-        </div>
-        <div class="form-group full-width">
-          <input type="text" id="editPayslipLastName" placeholder="Last Name" />
+          <input type="text" id="editPayslipName" placeholder="Name" />
         </div>
         <div class="form-group full-width">
           <input type="text" id="editPayslipEmpId" placeholder="Employee ID" />
         </div>
         <div class="form-group">
-          <select id="editPayslipMonth">
-            <option value="">Pay Month</option>
-            <option>January</option>
-            <option>February</option>
-            <option>March</option>
-            <option>April</option>
-            <option>May</option>
-            <option>June</option>
-            <option>July</option>
-            <option>August</option>
-            <option>September</option>
-            <option>October</option>
-            <option>November</option>
-            <option>December</option>
-          </select>
+          <input type="text" id="editPayslipDepartment" placeholder="Department (Optional)" />
         </div>
         <div class="form-group">
-          <input type="date" id="editPayslipDate" placeholder="Pay Date" />
+          <input type="text" id="editPayslipDesignation" placeholder="Designation" />
+        </div>
+        <div class="form-group">
+          <input type="date" id="editPayslipPayPeriod" placeholder="Pay Period" />
         </div>
       </div>
     </div>
