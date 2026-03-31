@@ -1994,12 +1994,24 @@ async function confirmImport() {
 
     const result = res?.data ?? res;
     const created = Number(result?.created || 0);
-    const restored = Number(result?.restored || 0);
     const skipped = Number(result?.skipped || 0);
-    const errors = Array.isArray(result?.errors) ? result.errors : [];
+    const failed = Number(result?.failed || 0);
 
-    const message = `Import complete: ${created} created, ${restored} restored, ${skipped} skipped${errors.length ? `, ${errors.length} errors` : ''}.`;
-    showToast(message, errors.length ? 'info' : 'success');
+    const parts = [];
+
+    if (created > 0) {
+      parts.push(`${created} ${created === 1 ? 'record' : 'records'} successfully created.`);
+    }
+    if (skipped > 0) {
+      parts.push(`${skipped} ${skipped === 1 ? 'record' : 'records'} skipped due to missing required fields.`);
+    }
+    if (failed > 0) {
+      parts.push(`${failed} ${failed === 1 ? 'record' : 'records'} failed due to validation errors.`);
+    }
+
+    const message = parts.length ? parts.join(' ') : 'No records were imported.';
+
+    showToast(message, failed ? 'info' : 'success');
   } catch (e) {
     showToast(e.message || 'Failed to import payslips.', 'error');
   }

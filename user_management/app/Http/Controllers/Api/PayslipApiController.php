@@ -272,10 +272,26 @@ class PayslipApiController extends Controller
             $created = 0;
             $restored = 0;
             $skipped = 0;
+            $failed = 0;
             $errors = [];
 
             foreach ($rows as $rowIndex => $row) {
                 try {
+                    // Ignore completely empty rows (common in spreadsheets).
+                    $hasAnyValue = false;
+                    foreach ($row as $v) {
+                        if (is_string($v)) {
+                            $v = trim($v);
+                        }
+                        if ($v !== null && $v !== '') {
+                            $hasAnyValue = true;
+                            break;
+                        }
+                    }
+                    if (! $hasAnyValue) {
+                        continue;
+                    }
+
                     $aliases = [
                         'employee_id' => ['employee_id', 'emp_id', 'employee_number', 'employeenumber', 'employee_no', 'user_id'],
                         'pay_period' => ['pay_period', 'payperiod', 'payroll_date', 'pay_date', 'paydate'],
@@ -288,7 +304,7 @@ class PayslipApiController extends Controller
                         'pera' => ['pera'],
                         'gross_amount' => ['gross_amount', 'gross_earnings'],
 
-                        // Deductions (common aliases from template/mapping)
+                        // Deductions 
                         'gsis_premium' => ['gsis_premium', 'gsis_membership_ins'],
                         'tax_withheld' => ['tax_withheld', 'withholding_tax'],
                         'philhealth' => ['philhealth', 'philhealth_contribution'],
@@ -354,24 +370,15 @@ class PayslipApiController extends Controller
                     $department = trim((string) ($get('department') ?? ''));
                     $designation = trim((string) ($get('designation') ?? ''));
 
-                    if ($employeeId === '' && empty($payPeriod)) {
+                    // Missing required columns is a "skipped" row, not an "error".
+                    if ($employeeId === '' || empty($payPeriod)) {
                         $skipped++;
-                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing EMPLOYEE NUMBER and PAYPERIOD.'];
-                        continue;
-                    }
-                    if ($employeeId === '') {
-                        $skipped++;
-                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing EMPLOYEE NUMBER.'];
-                        continue;
-                    }
-                    if (empty($payPeriod)) {
-                        $skipped++;
-                        $errors[] = ['row' => $rowIndex, 'error' => 'Missing PAYPERIOD.'];
                         continue;
                     }
 
                     $dateString = $this->normalizePayrollDate($payPeriod);
                     if ($dateString === null) {
+                        $failed++;
                         $errors[] = ['row' => $rowIndex, 'error' => "Invalid pay_period for Employee ID {$employeeId}."];
                         continue;
                     }
@@ -495,8 +502,6 @@ class PayslipApiController extends Controller
                         if ($needsUpdate) {
                             $existing->save();
                             $restored++;
-                        } else {
-                            $skipped++;
                         }
                         continue;
                     }
@@ -505,16 +510,18 @@ class PayslipApiController extends Controller
 
                     $created++;
                 } catch (\Throwable $e) {
+                    $failed++;
                     $errors[] = ['row' => $rowIndex, 'error' => $e->getMessage()];
                 }
             }
 
-            ActivityLog::record('imported_payslips', 'Payslip Management', "Imported payslips (created={$created}, restored={$restored}, skipped={$skipped})");
+            ActivityLog::record('imported_payslips', 'Payslip Management', "Imported payslips (created={$created}, restored={$restored}, skipped={$skipped}, failed={$failed})");
 
             return [
                 'created' => $created,
                 'restored' => $restored,
                 'skipped' => $skipped,
+                'failed' => $failed,
                 'errors' => $errors,
             ];
         });
