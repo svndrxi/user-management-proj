@@ -79,6 +79,9 @@ let archivedPayslips = [];
 let payslipPage = 1;
 let payslipArchivePage = 1;
 let payslipSearchQuery = '';
+let payslipDepartmentFilter = '';
+let payslipMonthFilter = '';
+let payslipYearFilter = '';
 let selectedPayslip = null;
 let selectedArchivedPayslip = null;
 let selectedPayslipIds = new Set();
@@ -226,6 +229,7 @@ async function loadAuditFromApi() {
 async function loadPayslipsFromApi() {
   const res = await dataSource.payslips.list({ per_page: 200 });
   payslipsData = (res.data || []).map(normalizePayslip);
+  updateFilterUI();
   renderPayslips();
 }
 
@@ -1560,6 +1564,23 @@ function getFilteredPayslips() {
       (p.designation || '').toLowerCase().includes(q)
     );
   }
+  
+  // Apply department filter
+  if (payslipDepartmentFilter) {
+    data = data.filter(p => p.department === payslipDepartmentFilter);
+  }
+  
+  // Apply month/year filters independently.
+  if (payslipMonthFilter || payslipYearFilter) {
+    data = data.filter((p) => {
+      if (!p.payPeriod) return false;
+      const [payYear, payMonth] = String(p.payPeriod).split('-');
+      const monthMatches = !payslipMonthFilter || payMonth === payslipMonthFilter;
+      const yearMatches = !payslipYearFilter || payYear === payslipYearFilter;
+      return monthMatches && yearMatches;
+    });
+  }
+  
   return data;
 }
 
@@ -1682,6 +1703,284 @@ function renderArchivedPayslips() {
   updateBulkActionUI();
 
   renderPagination('payslipArchivePagination', totalPages, payslipArchivePage, (p) => { payslipArchivePage = p; renderArchivedPayslips(); });
+}
+
+// ===== PAYSLIP FILTERS =====
+function getUniqueDepartments() {
+  const departments = new Set();
+  payslipsData.forEach(p => {
+    if (p.department) departments.add(p.department);
+  });
+  return Array.from(departments).sort();
+}
+
+function getAvailableYears() {
+  const years = new Set();
+  payslipsData.forEach(p => {
+    if (p.payPeriod) {
+      const [year, month] = p.payPeriod.split('-');
+      if (year && month) {
+        years.add(year);
+      }
+    }
+  });
+  return Array.from(years).sort().reverse();
+}
+
+function getAllMonths() {
+  return [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+}
+
+function getMonthLabel(monthValue) {
+  if (!monthValue) return 'All Months';
+  const match = getAllMonths().find((month) => month.value === monthValue);
+  return match ? match.label : monthValue;
+}
+
+function togglePayslipDepartmentFilter() {
+  const dropdown = document.getElementById('payslipDepartmentDropdown');
+  if (!dropdown) {
+    console.warn('payslipDepartmentDropdown not found');
+    return;
+  }
+  
+  const isVisible = dropdown.style.display === 'block';
+  dropdown.style.display = isVisible ? 'none' : 'block';
+  
+  if (!isVisible) {
+    populateDepartmentFilter();
+  }
+  closeOtherDropdown('department');
+}
+
+function togglePayslipMonthYearFilter() {
+  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  if (!dropdown) {
+    console.warn('payslipMonthYearDropdown not found');
+    return;
+  }
+  
+  const isVisible = dropdown.style.display === 'block';
+  dropdown.style.display = isVisible ? 'none' : 'block';
+  
+  if (!isVisible) {
+    populateMonthYearFilter();
+  }
+  closeOtherDropdown('month');
+}
+
+function closeOtherDropdown(keep) {
+  if (keep !== 'department') {
+    const deptDropdown = document.getElementById('payslipDepartmentDropdown');
+    if (deptDropdown) deptDropdown.style.display = 'none';
+  }
+  if (keep !== 'month') {
+    const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+    if (monthDropdown) monthDropdown.style.display = 'none';
+  }
+}
+
+function populateDepartmentFilter() {
+  const dropdown = document.getElementById('payslipDepartmentDropdown');
+  if (!dropdown) return;
+  
+  const departments = getUniqueDepartments();
+  dropdown.innerHTML = '';
+  
+  const allOption = document.createElement('div');
+  allOption.style.cssText = 'padding:10px 12px;cursor:pointer;white-space:nowrap;font-size:13.5px;';
+  allOption.textContent = 'All Departments';
+  if (!payslipDepartmentFilter) {
+    allOption.className = 'selected';
+  }
+  allOption.onclick = (e) => {
+    e.stopPropagation();
+    payslipDepartmentFilter = '';
+    payslipPage = 1;
+    updateFilterUI();
+    renderPayslips();
+    dropdown.style.display = 'none';
+    populateDepartmentFilter();
+  };
+  dropdown.appendChild(allOption);
+  
+  departments.forEach(dept => {
+    const option = document.createElement('div');
+    option.style.cssText = 'padding:10px 12px;cursor:pointer;white-space:nowrap;font-size:13.5px;';
+    option.textContent = dept;
+    if (dept === payslipDepartmentFilter) {
+      option.className = 'selected';
+    }
+    option.onclick = (e) => {
+      e.stopPropagation();
+      payslipDepartmentFilter = dept;
+      payslipPage = 1;
+      updateFilterUI();
+      renderPayslips();
+      dropdown.style.display = 'none';
+      populateDepartmentFilter();
+    };
+    dropdown.appendChild(option);
+  });
+}
+
+function populateMonthYearFilter() {
+  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  if (!dropdown) return;
+
+  const months = getAllMonths();
+  const years = getAvailableYears();
+  dropdown.innerHTML = '';
+
+  const createHeader = (text) => {
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:8px 12px;font-size:12px;font-weight:700;color:#5f6a7a;background:#f6f8fb;cursor:default;';
+    header.textContent = text;
+    return header;
+  };
+
+  const createOption = (text, selected, onClick) => {
+    const option = document.createElement('div');
+    option.style.cssText = 'padding:10px 12px;cursor:pointer;white-space:nowrap;font-size:13.5px;';
+    option.textContent = text;
+    if (selected) option.className = 'selected';
+    option.onclick = onClick;
+    return option;
+  };
+
+  dropdown.appendChild(createHeader('Month'));
+
+  const allMonthsOption = createOption('All Months', !payslipMonthFilter, (e) => {
+    e.stopPropagation();
+    payslipMonthFilter = '';
+    payslipPage = 1;
+    updateFilterUI();
+    renderPayslips();
+    populateMonthYearFilter();
+  });
+  dropdown.appendChild(allMonthsOption);
+
+  months.forEach(({ value, label }) => {
+    const option = createOption(label, value === payslipMonthFilter, (e) => {
+      e.stopPropagation();
+      payslipMonthFilter = value;
+      payslipPage = 1;
+      updateFilterUI();
+      renderPayslips();
+      populateMonthYearFilter();
+    });
+    dropdown.appendChild(option);
+  });
+
+  dropdown.appendChild(createHeader('Year'));
+
+  const allYearsOption = createOption('All Years', !payslipYearFilter, (e) => {
+    e.stopPropagation();
+    payslipYearFilter = '';
+    payslipPage = 1;
+    updateFilterUI();
+    renderPayslips();
+    populateMonthYearFilter();
+  });
+  dropdown.appendChild(allYearsOption);
+
+  years.forEach((year) => {
+    const option = createOption(year, year === payslipYearFilter, (e) => {
+      e.stopPropagation();
+      payslipYearFilter = year;
+      payslipPage = 1;
+      updateFilterUI();
+      renderPayslips();
+      populateMonthYearFilter();
+    });
+    dropdown.appendChild(option);
+  });
+}
+
+function clearPayslipFilters() {
+  payslipDepartmentFilter = '';
+  payslipMonthFilter = '';
+  payslipYearFilter = '';
+  payslipPage = 1;
+  updateFilterUI();
+  renderPayslips();
+  
+  // Close dropdowns
+  const deptDropdown = document.getElementById('payslipDepartmentDropdown');
+  const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  if (deptDropdown) deptDropdown.style.display = 'none';
+  if (monthDropdown) monthDropdown.style.display = 'none';
+}
+
+function updateFilterUI() {
+  const deptBtn = document.getElementById('payslipDepartmentFilterBtn');
+  const monthBtn = document.getElementById('payslipMonthYearFilterBtn');
+  const monthBtnLabel = document.getElementById('payslipMonthYearFilterLabel');
+  const clearBtn = document.getElementById('payslipClearFiltersBtn');
+  
+  if (!deptBtn || !monthBtn || !clearBtn) {
+    console.warn('Filter buttons not found in DOM');
+    return;
+  }
+  
+  // Show/hide filter buttons if we have data
+  const hasData = payslipsData && payslipsData.length > 0;
+  
+  if (hasData) {
+    deptBtn.style.display = 'flex';
+    monthBtn.style.display = 'flex';
+  } else {
+    deptBtn.style.display = 'none';
+    monthBtn.style.display = 'none';
+  }
+  
+  // Update button styles to indicate active filters
+  if (payslipDepartmentFilter) {
+    deptBtn.style.backgroundColor = '#0a5ba8';
+    deptBtn.style.color = '#fff';
+    deptBtn.style.borderColor = '#0a5ba8';
+  } else {
+    deptBtn.style.backgroundColor = '';
+    deptBtn.style.color = '';
+    deptBtn.style.borderColor = '';
+  }
+  
+  if (payslipMonthFilter || payslipYearFilter) {
+    monthBtn.style.backgroundColor = '#0a5ba8';
+    monthBtn.style.color = '#fff';
+    monthBtn.style.borderColor = '#0a5ba8';
+  } else {
+    monthBtn.style.backgroundColor = '';
+    monthBtn.style.color = '';
+    monthBtn.style.borderColor = '';
+  }
+
+  if (monthBtnLabel) {
+    if (!payslipMonthFilter && !payslipYearFilter) {
+      monthBtnLabel.textContent = 'Month & Year';
+    } else {
+      const selectedMonthLabel = getMonthLabel(payslipMonthFilter);
+      const selectedYearLabel = payslipYearFilter || 'All Years';
+      monthBtnLabel.textContent = `Month & Year: ${selectedMonthLabel} / ${selectedYearLabel}`;
+    }
+  }
+  
+  // Show clear button only when filters are applied
+  const hasFilters = Boolean(payslipDepartmentFilter || payslipMonthFilter || payslipYearFilter);
+  clearBtn.style.display = hasFilters ? 'block' : 'none';
 }
 
 // ===== EDIT PAYSLIP MODAL =====
@@ -2229,6 +2528,21 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Close payslip filter dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+  const deptBtn = document.getElementById('payslipDepartmentFilterBtn');
+  const deptDropdown = document.getElementById('payslipDepartmentDropdown');
+  const monthBtn = document.getElementById('payslipMonthYearFilterBtn');
+  const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  
+  if (deptBtn && deptDropdown && !deptBtn.contains(e.target) && !deptDropdown.contains(e.target)) {
+    deptDropdown.style.display = 'none';
+  }
+  if (monthBtn && monthDropdown && !monthBtn.contains(e.target) && !monthDropdown.contains(e.target)) {
+    monthDropdown.style.display = 'none';
+  }
+});
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
   bindValidationEvents();
@@ -2308,6 +2622,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     mainContent.classList.toggle('collapsed');
     localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
   });
+
+  // Initialize dropdowns
+  const deptFilterBtn = document.getElementById('payslipDepartmentFilterBtn');
+  const monthFilterBtn = document.getElementById('payslipMonthYearFilterBtn');
+  const deptDropdown = document.getElementById('payslipDepartmentDropdown');
+  const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  
+  if (deptDropdown) deptDropdown.style.display = 'none';
+  if (monthDropdown) monthDropdown.style.display = 'none';
+  
+  if (deptDropdown) {
+    deptDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  if (monthDropdown) {
+    monthDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  updateFilterUI();
 });
 
 Object.assign(window, {
@@ -2378,4 +2714,7 @@ Object.assign(window, {
   confirmBulkArchivePayslips,
   bulkUnarchiveSelectedPayslips,
   confirmBulkUnarchivePayslips,
+  togglePayslipDepartmentFilter,
+  togglePayslipMonthYearFilter,
+  clearPayslipFilters,
 });
