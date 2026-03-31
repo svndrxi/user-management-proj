@@ -304,7 +304,7 @@
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="filter-icon-left">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                   </svg>
-                  <span>Department</span>
+                  <span id="payslipDepartmentFilterLabel">Department</span>
                 </button>
                 <div id="payslipDepartmentDropdown" class="filter-dropdown"></div>
               </div>
@@ -325,6 +325,7 @@
               <div id="payslipBulkActions" class="bulk-actions" style="display:none;">
                 <span class="bulk-count" id="payslipSelectedCount">0 selected</span>
                 <button class="btn-bulk-clear" onclick="clearPayslipSelection()">Clear</button>
+                <button class="btn-bulk-print" onclick="bulkPrintSelectedPayslips()">Print All</button>
                 <button class="btn-bulk-archive" onclick="bulkArchiveSelectedPayslips()">Archive</button>
               </div>
               <button class="btn-import" onclick="openImportModal()">

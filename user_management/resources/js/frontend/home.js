@@ -1927,6 +1927,7 @@ function clearPayslipFilters() {
 
 function updateFilterUI() {
   const deptBtn = document.getElementById('payslipDepartmentFilterBtn');
+  const deptBtnLabel = document.getElementById('payslipDepartmentFilterLabel');
   const monthBtn = document.getElementById('payslipMonthYearFilterBtn');
   const monthBtnLabel = document.getElementById('payslipMonthYearFilterLabel');
   const clearBtn = document.getElementById('payslipClearFiltersBtn');
@@ -1969,13 +1970,22 @@ function updateFilterUI() {
   }
 
   if (monthBtnLabel) {
-    if (!payslipMonthFilter && !payslipYearFilter) {
+    const hasMonth = Boolean(payslipMonthFilter);
+    const hasYear = Boolean(payslipYearFilter);
+
+    if (!hasMonth && !hasYear) {
       monthBtnLabel.textContent = 'Month & Year';
+    } else if (hasMonth && hasYear) {
+      monthBtnLabel.textContent = `${getMonthLabel(payslipMonthFilter)} / ${payslipYearFilter}`;
+    } else if (hasMonth) {
+      monthBtnLabel.textContent = getMonthLabel(payslipMonthFilter);
     } else {
-      const selectedMonthLabel = getMonthLabel(payslipMonthFilter);
-      const selectedYearLabel = payslipYearFilter || 'All Years';
-      monthBtnLabel.textContent = `Month & Year: ${selectedMonthLabel} / ${selectedYearLabel}`;
+      monthBtnLabel.textContent = payslipYearFilter;
     }
+  }
+
+  if (deptBtnLabel) {
+    deptBtnLabel.textContent = payslipDepartmentFilter || 'Department';
   }
   
   // Show clear button only when filters are applied
@@ -2373,28 +2383,32 @@ function computePayoutDate(payPeriodIso, day) {
   return d.toISOString().slice(0, 10);
 }
 
-async function printPayslip(payslipId) {
+function getPayslipTemplateParts() {
   const templateElement = document.getElementById('payslipPrintTemplate');
   if (!templateElement) {
     showToast('Payslip print template is missing in the page.', 'error');
-    return;
+    return null;
   }
 
-  let html = String(templateElement.innerHTML || '').trim();
-  if (!html) {
+  const templateHtml = String(templateElement.innerHTML || '').trim();
+  if (!templateHtml) {
     showToast('Payslip print template is empty.', 'error');
-    return;
+    return null;
   }
 
-  let record;
-  try {
-    record = await dataSource.payslips.get(payslipId);
-  } catch (e) {
-    showToast(e.message || 'Failed to load payslip from server.', 'error');
-    return;
-  }
+  const styleMatch = templateHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const bodyMatch = templateHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
 
-  const p = record?.data ?? record ?? {};
+  return {
+    styleCss: styleMatch ? styleMatch[1] : '',
+    bodyTemplate: bodyMatch ? bodyMatch[1] : templateHtml,
+  };
+}
+
+function renderPayslipPrintBody(bodyTemplate, payslipRecord) {
+  let renderedBody = String(bodyTemplate || '');
+  const p = payslipRecord || {};
+
   const payPeriodIso = String(p.pay_period || p.payPeriod || '').slice(0, 10);
 
   const pay15Iso = p['15th_dop'] ? String(p['15th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 14);
@@ -2452,7 +2466,7 @@ async function printPayslip(payslipId) {
   };
 
   Object.entries(tokenValues).forEach(([key, value]) => {
-    html = html.split(`__${key}__`).join(escapeHtml(value));
+    renderedBody = renderedBody.split(`__${key}__`).join(escapeHtml(value));
   });
 
   const dynamicFields = [
@@ -2490,14 +2504,41 @@ async function printPayslip(payslipId) {
     .filter(Boolean)
     .join('');
 
-  html = html.split('<!--__DYNAMIC_FIELDS__-->').join(dynamicRowsHtml);
+  return renderedBody.split('<!--__DYNAMIC_FIELDS__-->').join(dynamicRowsHtml);
+}
 
+function openPayslipPrintWindow(renderedBodies, styleCss) {
   const printWin = window.open('', '_blank', 'width=850,height=750');
   if (!printWin) {
     showToast('Please allow popups to print the payslip.', 'error');
-    return;
+    return false;
   }
-  printWin.document.write(html);
+
+  const pagesHtml = renderedBodies
+    .map((body, index) => `${body}${index < renderedBodies.length - 1 ? '<div class="bulk-page-break"></div>' : ''}`)
+    .join('');
+
+  const printHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LRA Payslip Print</title>
+  <style>${styleCss || ''}</style>
+  <style>
+    .bulk-page-break {
+      page-break-after: always;
+      break-after: page;
+      height: 0;
+    }
+  </style>
+</head>
+<body>
+${pagesHtml}
+</body>
+</html>`;
+
+  printWin.document.write(printHtml);
   printWin.document.close();
   printWin.focus();
 
@@ -2512,6 +2553,62 @@ async function printPayslip(payslipId) {
 
   printWin.addEventListener('load', triggerPrint, { once: true });
   setTimeout(triggerPrint, 350);
+  return true;
+}
+
+async function printPayslip(payslipId) {
+  const templateParts = getPayslipTemplateParts();
+  if (!templateParts) return;
+
+  let record;
+  try {
+    record = await dataSource.payslips.get(payslipId);
+  } catch (e) {
+    showToast(e.message || 'Failed to load payslip from server.', 'error');
+    return;
+  }
+
+  const payslipData = record?.data ?? record ?? {};
+  const renderedBody = renderPayslipPrintBody(templateParts.bodyTemplate, payslipData);
+  openPayslipPrintWindow([renderedBody], templateParts.styleCss);
+}
+
+async function bulkPrintSelectedPayslips() {
+  if (selectedPayslipIds.size === 0) return;
+
+  const templateParts = getPayslipTemplateParts();
+  if (!templateParts) return;
+
+  const selectedIds = Array.from(selectedPayslipIds);
+  const failedIds = [];
+
+  const records = await Promise.all(
+    selectedIds.map(async (id) => {
+      try {
+        const response = await dataSource.payslips.get(id);
+        return response?.data ?? response ?? {};
+      } catch (_) {
+        failedIds.push(id);
+        return null;
+      }
+    })
+  );
+
+  const printablePayslips = records.filter(Boolean);
+  if (printablePayslips.length === 0) {
+    showToast('Failed to load selected payslips for printing.', 'error');
+    return;
+  }
+
+  const renderedBodies = printablePayslips.map((p) => renderPayslipPrintBody(templateParts.bodyTemplate, p));
+  const opened = openPayslipPrintWindow(renderedBodies, templateParts.styleCss);
+
+  if (opened) {
+    showToast(`${printablePayslips.length} payslip(s) ready for print.`, 'success');
+    if (failedIds.length > 0) {
+      showToast(`${failedIds.length} selected payslip(s) could not be loaded.`, 'info');
+    }
+  }
 }
 
 // ===== SVG ICONS =====
@@ -2709,6 +2806,7 @@ Object.assign(window, {
   toggleSelectAllVisiblePayslips,
   toggleSelectAllVisibleArchivedPayslips,
   clearPayslipSelection,
+  bulkPrintSelectedPayslips,
   clearArchivedPayslipSelection,
   bulkArchiveSelectedPayslips,
   confirmBulkArchivePayslips,
