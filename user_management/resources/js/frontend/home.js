@@ -86,6 +86,7 @@ let selectedPayslip = null;
 let selectedArchivedPayslip = null;
 let selectedPayslipIds = new Set();
 let selectedArchivedPayslipIds = new Set();
+let selectedPayslipViewId = null;
 
 function parseDateTime(value) {
   if (!value) return null;
@@ -1611,6 +1612,9 @@ function renderPayslips() {
       <td>${formatPayDate(p.payPeriod)}</td>
       <td>
         <div class="action-btns">
+          <button class="btn-view" onclick="openViewPayslipModal(${p.id})" title="View Payslip">
+            ${iconEye}
+          </button>
           <button class="btn-edit" onclick="openEditPayslipModal(${p.id})" title="Edit">
             ${iconEdit}
           </button>
@@ -2556,6 +2560,64 @@ ${pagesHtml}
   return true;
 }
 
+function renderPayslipDocumentHtml(renderedBody, styleCss) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LRA Payslip Preview</title>
+  <style>${styleCss || ''}</style>
+</head>
+<body>
+${renderedBody}
+</body>
+</html>`;
+}
+
+async function openViewPayslipModal(payslipId) {
+  const templateParts = getPayslipTemplateParts();
+  if (!templateParts) return;
+
+  let record;
+  try {
+    record = await dataSource.payslips.get(payslipId);
+  } catch (e) {
+    showToast(e.message || 'Failed to load payslip from server.', 'error');
+    return;
+  }
+
+  const frame = document.getElementById('viewPayslipFrame');
+  if (!frame) {
+    showToast('Payslip preview frame is missing in the page.', 'error');
+    return;
+  }
+
+  const payslipData = record?.data ?? record ?? {};
+  const renderedBody = renderPayslipPrintBody(templateParts.bodyTemplate, payslipData);
+  frame.srcdoc = renderPayslipDocumentHtml(renderedBody, templateParts.styleCss);
+  selectedPayslipViewId = payslipId;
+  openModal('viewPayslipModal');
+}
+
+function printViewedPayslip() {
+  if (!selectedPayslipViewId) {
+    showToast('No payslip selected for printing.', 'info');
+    return;
+  }
+  printPayslip(selectedPayslipViewId);
+}
+
+function downloadViewedPayslipPdf() {
+  if (!selectedPayslipViewId) {
+    showToast('No payslip selected for download.', 'info');
+    return;
+  }
+
+  showToast('In the print dialog, choose Save as PDF to download this payslip.', 'info');
+  printPayslip(selectedPayslipViewId);
+}
+
 async function printPayslip(payslipId) {
   const templateParts = getPayslipTemplateParts();
   if (!templateParts) return;
@@ -2784,6 +2846,7 @@ Object.assign(window, {
   saveEditUser,
   generatePassword,
   closeModal,
+  openViewPayslipModal,
   openPayslipArchiveList,
   closePayslipArchiveList,
   renderPayslips,
@@ -2801,6 +2864,8 @@ Object.assign(window, {
   handleImportDrop,
   confirmImport,
   printPayslip,
+  printViewedPayslip,
+  downloadViewedPayslipPdf,
   togglePayslipSelection,
   toggleArchivedPayslipSelection,
   toggleSelectAllVisiblePayslips,

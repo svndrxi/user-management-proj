@@ -812,6 +812,23 @@
   </div>
 </div>
 
+<!-- VIEW PAYSLIP MODAL -->
+<div class="modal-overlay" id="viewPayslipModal">
+  <div class="modal modal-payslip-view">
+    <div class="modal-header"><h3 class="modal-title">Payslip</h3></div>
+    <div class="modal-body payslip-view-body">
+      <div class="payslip-preview-shell">
+        <iframe id="viewPayslipFrame" class="payslip-preview-iframe" title="Payslip Preview"></iframe>
+      </div>
+    </div>
+    <div class="modal-footer payslip-view-footer">
+      <button class="btn-view-payslip-action" onclick="printViewedPayslip()">Print</button>
+      <button class="btn-view-payslip-action" onclick="downloadViewedPayslipPdf()">Download PDF</button>
+      <button class="btn-save-view" onclick="closeModal('viewPayslipModal')">Back</button>
+    </div>
+  </div>
+</div>
+
 <!-- ARCHIVE PAYSLIP CONFIRM MODAL -->
 <div class="modal-overlay" id="archivePayslipModal">
   <div class="modal modal-delete" style="max-width:400px;">
