@@ -822,8 +822,10 @@
       </div>
     </div>
     <div class="modal-footer payslip-view-footer">
-      <button class="btn-view-payslip-action" onclick="printViewedPayslip()">Print</button>
-      <button class="btn-view-payslip-action" onclick="downloadViewedPayslipPdf()">Download PDF</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-view-payslip-action" onclick="printViewedPayslip()">Print</button>
+        <button class="btn-view-payslip-action" onclick="downloadViewedPayslipPdf()">Download PDF</button>
+      </div>
       <button class="btn-save-view" onclick="closeModal('viewPayslipModal')">Back</button>
     </div>
   </div>
