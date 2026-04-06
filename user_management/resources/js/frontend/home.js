@@ -2694,7 +2694,7 @@ async function downloadViewedPayslipPdf() {
     exportFrame.style.left = '-12000px';
     exportFrame.style.top = '0';
     exportFrame.style.width = '900px';
-    exportFrame.style.height = '1273px';
+    exportFrame.style.height = '1123px';
     exportFrame.style.opacity = '0';
     exportFrame.style.pointerEvents = 'none';
     document.body.appendChild(exportFrame);
@@ -2718,7 +2718,7 @@ async function downloadViewedPayslipPdf() {
     }
 
     const canvas = await window.html2canvas(exportDoc.body, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
