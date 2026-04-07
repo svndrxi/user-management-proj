@@ -88,6 +88,10 @@ let selectedPayslipIds = new Set();
 let selectedArchivedPayslipIds = new Set();
 let selectedPayslipViewId = null;
 
+// ===== CALENDAR PICKER STATE =====
+let calendarViewDate = new Date();
+let calendarSelectedDate = null;
+
 function parseDateTime(value) {
   if (!value) return null;
   const normalized = typeof value === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)
@@ -1781,9 +1785,245 @@ function togglePayslipMonthYearFilter() {
   dropdown.style.display = isVisible ? 'none' : 'block';
   
   if (!isVisible) {
-    populateMonthYearFilter();
+    // Initialize calendar with preserved selection when possible.
+    if (payslipMonthFilter && payslipYearFilter) {
+      const selectedMatchesFilter = calendarSelectedDate
+        && String(calendarSelectedDate.getFullYear()) === payslipYearFilter
+        && String(calendarSelectedDate.getMonth() + 1).padStart(2, '0') === payslipMonthFilter;
+
+      if (selectedMatchesFilter) {
+        calendarViewDate = new Date(
+          calendarSelectedDate.getFullYear(),
+          calendarSelectedDate.getMonth(),
+          1
+        );
+      } else {
+        calendarSelectedDate = new Date(parseInt(payslipYearFilter, 10), parseInt(payslipMonthFilter, 10) - 1, 1);
+        calendarViewDate = new Date(parseInt(payslipYearFilter, 10), parseInt(payslipMonthFilter, 10) - 1, 1);
+      }
+    } else if (calendarSelectedDate) {
+      calendarViewDate = new Date(calendarSelectedDate.getFullYear(), calendarSelectedDate.getMonth(), 1);
+    } else {
+      calendarSelectedDate = new Date();
+      calendarViewDate = new Date();
+    }
+    renderCalendarPicker();
   }
   closeOtherDropdown('month');
+}
+
+function renderCalendarPicker() {
+  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  if (!dropdown) return;
+  
+  dropdown.innerHTML = '';
+  
+  // Header with navigation
+  const header = document.createElement('div');
+  header.className = 'calendar-header';
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'calendar-nav-btn';
+  prevBtn.textContent = '<';
+  prevBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    previousCalendarMonth();
+  });
+
+  const monthYearPicker = document.createElement('div');
+  monthYearPicker.className = 'calendar-month-year-picker';
+
+  const monthSelect = document.createElement('select');
+  monthSelect.className = 'calendar-month-select';
+  getAllMonths().forEach(({ value, label }) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    monthSelect.appendChild(option);
+  });
+  monthSelect.value = String(calendarViewDate.getMonth() + 1).padStart(2, '0');
+  monthSelect.addEventListener('click', (event) => event.stopPropagation());
+  monthSelect.addEventListener('change', (event) => {
+    event.stopPropagation();
+    const month = parseInt(monthSelect.value, 10) - 1;
+    const year = calendarViewDate.getFullYear();
+    calendarViewDate = new Date(year, month, 1);
+    renderCalendarPicker();
+  });
+
+  const yearSelect = document.createElement('input');
+  yearSelect.type = 'number';
+  yearSelect.className = 'calendar-year-select';
+  yearSelect.min = '1';
+  yearSelect.max = '9999';
+  yearSelect.step = '1';
+  yearSelect.value = String(calendarViewDate.getFullYear());
+  yearSelect.addEventListener('click', (event) => event.stopPropagation());
+
+  const applyYearInput = (event) => {
+    event.stopPropagation();
+    const year = parseInt(yearSelect.value, 10);
+    if (Number.isNaN(year) || year < 1 || year > 9999) {
+      yearSelect.value = String(calendarViewDate.getFullYear());
+      return;
+    }
+    const month = calendarViewDate.getMonth();
+    calendarViewDate = new Date(year, month, 1);
+    renderCalendarPicker();
+  };
+
+  yearSelect.addEventListener('change', applyYearInput);
+  yearSelect.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      applyYearInput(event);
+    }
+  });
+
+  monthYearPicker.appendChild(monthSelect);
+  monthYearPicker.appendChild(yearSelect);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'calendar-nav-btn';
+  nextBtn.textContent = '>';
+  nextBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    nextCalendarMonth();
+  });
+
+  header.appendChild(prevBtn);
+  header.appendChild(monthYearPicker);
+  header.appendChild(nextBtn);
+  dropdown.appendChild(header);
+  
+  // Weekday headers
+  const weekdaysContainer = document.createElement('div');
+  weekdaysContainer.className = 'calendar-weekdays';
+  const weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  weekdays.forEach(day => {
+    const dayEl = document.createElement('span');
+    dayEl.textContent = day;
+    weekdaysContainer.appendChild(dayEl);
+  });
+  dropdown.appendChild(weekdaysContainer);
+  
+  // Calendar grid
+  const grid = document.createElement('div');
+  grid.className = 'calendar-grid';
+  
+  const firstDay = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1);
+  const lastDay = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Adjust for Monday start
+  
+  // Get previous month's days to fill leading empty cells
+  const prevMonthLastDay = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 0).getDate();
+  const leadingDaysCount = startingDayOfWeek;
+  
+  for (let i = leadingDaysCount - 1; i >= 0; i--) {
+    const dayCell = document.createElement('span');
+    dayCell.className = 'calendar-day other-month';
+    dayCell.textContent = prevMonthLastDay - i;
+    grid.appendChild(dayCell);
+  }
+  
+  // Days of current month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayCell = document.createElement('span');
+    dayCell.className = 'calendar-day';
+    dayCell.textContent = day;
+    
+    const currentDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+    
+    if (calendarSelectedDate && 
+        currentDate.toDateString() === calendarSelectedDate.toDateString()) {
+      dayCell.classList.add('selected');
+    }
+    
+    dayCell.onclick = () => selectCalendarDate(day);
+    grid.appendChild(dayCell);
+  }
+  
+  // Fill remaining cells with next month's dates
+  const totalCells = grid.children.length;
+  const remainingCells = (7 * Math.ceil(totalCells / 7)) - totalCells; // Complete the week grid
+  for (let day = 1; day <= remainingCells; day++) {
+    const dayCell = document.createElement('span');
+    dayCell.className = 'calendar-day other-month';
+    dayCell.textContent = day;
+    grid.appendChild(dayCell);
+  }
+  
+  dropdown.appendChild(grid);
+  
+  // Date display and button
+  const footer = document.createElement('div');
+  footer.className = 'calendar-footer';
+  const selectedDateLabel = document.createElement('span');
+  selectedDateLabel.className = 'calendar-selected-date';
+  selectedDateLabel.textContent = formatSelectedCalendarDate();
+
+  const setDateBtn = document.createElement('button');
+  setDateBtn.type = 'button';
+  setDateBtn.className = 'btn-set-date';
+  setDateBtn.textContent = 'Set Date';
+  setDateBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    applyCalendarFilter();
+  });
+
+  footer.appendChild(selectedDateLabel);
+  footer.appendChild(setDateBtn);
+  dropdown.appendChild(footer);
+}
+
+function formatCalendarDate() {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${monthNames[calendarViewDate.getMonth()]} ${calendarViewDate.getFullYear()}`;
+}
+
+function formatSelectedCalendarDate() {
+  if (!calendarSelectedDate) {
+    return 'No date selected';
+  }
+  const day = String(calendarSelectedDate.getDate()).padStart(2, '0');
+  const month = String(calendarSelectedDate.getMonth() + 1).padStart(2, '0');
+  const year = calendarSelectedDate.getFullYear();
+  return `${day} / ${month} / ${year}`;
+}
+
+function selectCalendarDate(day) {
+  calendarSelectedDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+  renderCalendarPicker();
+}
+
+function previousCalendarMonth() {
+  calendarViewDate.setDate(1);
+  calendarViewDate.setMonth(calendarViewDate.getMonth() - 1);
+  calendarSelectedDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1);
+  renderCalendarPicker();
+}
+
+function nextCalendarMonth() {
+  calendarViewDate.setDate(1);
+  calendarViewDate.setMonth(calendarViewDate.getMonth() + 1);
+  calendarSelectedDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), 1);
+  renderCalendarPicker();
+}
+
+function applyCalendarFilter() {
+  if (calendarSelectedDate) {
+    payslipMonthFilter = String(calendarSelectedDate.getMonth() + 1).padStart(2, '0');
+    payslipYearFilter = String(calendarSelectedDate.getFullYear());
+  }
+  
+  payslipPage = 1;
+  updateFilterUI();
+  renderPayslips();
+  
+  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  if (dropdown) dropdown.style.display = 'none';
 }
 
 function closeOtherDropdown(keep) {
@@ -1918,6 +2158,8 @@ function clearPayslipFilters() {
   payslipDepartmentFilter = '';
   payslipMonthFilter = '';
   payslipYearFilter = '';
+  calendarSelectedDate = null;
+  calendarViewDate = new Date();
   payslipPage = 1;
   updateFilterUI();
   renderPayslips();

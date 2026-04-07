@@ -211,6 +211,16 @@ ul { list-style: none; }
     overflow-x: hidden;
   box-shadow: var(--shadow-md);
 }
+
+#payslipMonthYearDropdown {
+    min-width: 340px;
+    max-width: 360px;
+    max-height: min(460px, calc(100vh - 140px));
+    left: auto;
+    right: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
 .filter-dropdown.visible { display: block; }
 .filter-dropdown > div { 
   padding: 10px 12px;
@@ -860,6 +870,195 @@ ul { list-style: none; }
     min-height: 20px;
 }
 
+/* ===== CALENDAR PICKER ===== */
+.calendar-header {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    column-gap: 10px;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.calendar-nav-btn {
+    background: var(--navy);
+    color: var(--white);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transition);
+}
+
+.calendar-nav-btn:hover {
+    background: var(--navy-dark);
+}
+
+.calendar-month-year {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 14px;
+}
+
+.calendar-month-year-picker {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+.calendar-month-select,
+.calendar-year-select {
+    border: 1px solid var(--gray-light);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text-dark);
+    font-size: 13px;
+    font-weight: 600;
+    height: 32px;
+    padding: 0 10px;
+    width: 100%;
+    min-width: 0;
+}
+
+.calendar-month-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--gray-mid) 50%), linear-gradient(135deg, var(--gray-mid) 50%, transparent 50%);
+    background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 9px) calc(50% - 2px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 28px;
+}
+
+.calendar-month-select:focus,
+.calendar-year-select:focus {
+    border-color: var(--navy-light);
+    box-shadow: 0 0 0 2px rgba(10, 91, 168, 0.12);
+    outline: none;
+}
+
+.calendar-month-select option {
+    background: var(--white);
+    color: var(--text-dark);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 10px;
+}
+
+.calendar-month-select option:checked {
+    background: var(--navy);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.calendar-month-select {
+    min-width: 0;
+}
+
+.calendar-year-select {
+    min-width: 0;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--gray-light);
+    text-align: center;
+}
+
+.calendar-weekdays span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-mid);
+    padding: 4px 0;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 8px 4px;
+}
+
+.calendar-day {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all var(--transition);
+    color: var(--text-dark);
+    margin: 2px auto;
+}
+
+.calendar-day:not(.empty):not(.other-month):hover {
+    background: var(--gray-bg);
+    font-weight: 600;
+}
+
+.calendar-day.empty {
+    cursor: default;
+}
+
+.calendar-day.other-month {
+    color: var(--gray-mid);
+    cursor: default;
+}
+
+.calendar-day.selected {
+    background: var(--navy);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.calendar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: nowrap;
+    padding: 12px 16px;
+    border-top: 1px solid var(--gray-light);
+}
+
+.calendar-selected-date {
+    font-size: 13px;
+    color: var(--navy);
+    font-weight: 600;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-set-date {
+    background: var(--navy);
+    color: var(--white);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transition);
+}
+
+.btn-set-date:hover {
+    background: var(--navy-dark);
+}
+
 @media (max-width: 768px) {
     .sidebar { width: var(--sidebar-collapsed-width); }
     .nav-label { display: none; }
@@ -868,6 +1067,25 @@ ul { list-style: none; }
     .info-grid { grid-template-columns: 1fr; }
     .profile-info-grid { grid-template-columns: 1fr; }
     .search-box input { width: 180px; }
+
+    #payslipMonthYearDropdown {
+        min-width: 300px;
+        max-width: calc(100vw - 32px);
+        right: 0;
+    }
+
+    .calendar-month-year-picker {
+        grid-template-columns: minmax(0, 1fr) 86px;
+    }
+
+    .calendar-footer {
+        padding: 10px 12px;
+    }
+
+    .btn-set-date {
+        margin-left: 0;
+        width: 100%;
+    }
 }
 
 
