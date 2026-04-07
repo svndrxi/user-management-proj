@@ -2693,8 +2693,8 @@ async function downloadViewedPayslipPdf() {
     exportFrame.style.position = 'fixed';
     exportFrame.style.left = '-12000px';
     exportFrame.style.top = '0';
-    exportFrame.style.width = '900px';
-    exportFrame.style.height = '1123px';
+    exportFrame.style.width = '920px';
+    exportFrame.style.height = '1200px';
     exportFrame.style.opacity = '0';
     exportFrame.style.pointerEvents = 'none';
     document.body.appendChild(exportFrame);
