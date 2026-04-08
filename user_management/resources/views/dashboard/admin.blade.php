@@ -789,18 +789,23 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group">
+          <label>Name</label>
           <input type="text" id="editPayslipName" placeholder="Name" />
         </div>
         <div class="form-group full-width">
+          <label>Employee ID</label>
           <input type="text" id="editPayslipEmpId" placeholder="Employee ID" />
         </div>
         <div class="form-group">
+          <label>Department</label>
           <input type="text" id="editPayslipDepartment" placeholder="Department (Optional)" />
         </div>
         <div class="form-group">
+          <label>Designation</label>
           <input type="text" id="editPayslipDesignation" placeholder="Designation" />
         </div>
         <div class="form-group">
+          <label>Pay Period</label>
           <input type="date" id="editPayslipPayPeriod" placeholder="Pay Period" />
         </div>
       </div>
