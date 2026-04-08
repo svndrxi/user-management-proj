@@ -2438,6 +2438,20 @@ function bulkArchiveSelectedPayslips() {
   openModal('bulkArchivePayslipModal');
 }
 
+function bulkDeleteSelectedPayslips() {
+  if (selectedPayslipIds.size === 0) return;
+  const selectedItems = payslipsData.filter((p) => selectedPayslipIds.has(p.id));
+  if (selectedItems.length === 0) {
+    selectedPayslipIds.clear();
+    updateBulkActionUI();
+    renderPayslips();
+    return;
+  }
+  const count = document.getElementById('bulkDeletePayslipCount');
+  if (count) count.textContent = `${selectedItems.length} selected payslip(s)`;
+  openModal('bulkDeletePayslipModal');
+}
+
 async function confirmBulkArchivePayslips() {
   if (selectedPayslipIds.size === 0) {
     closeModal('bulkArchivePayslipModal');
@@ -2456,6 +2470,27 @@ async function confirmBulkArchivePayslips() {
     showToast(`${selectedIds.length} payslip(s) archived successfully.`, 'info');
   } catch (e) {
     showToast(e.message || 'Failed to archive selected payslips.', 'error');
+  }
+}
+
+async function confirmBulkDeletePayslips() {
+  if (selectedPayslipIds.size === 0) {
+    closeModal('bulkDeletePayslipModal');
+    return;
+  }
+  closeModal('bulkDeletePayslipModal');
+
+  const selectedIds = Array.from(selectedPayslipIds);
+
+  try {
+    await Promise.all(selectedIds.map((id) => dataSource.payslips.softDelete(id)));
+    selectedPayslipIds.clear();
+    selectedArchivedPayslipIds.clear();
+    await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+    updateBulkActionUI();
+    showToast(`${selectedIds.length} payslip(s) deleted successfully.`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to delete selected payslips.', 'error');
   }
 }
 
@@ -3260,6 +3295,8 @@ Object.assign(window, {
   clearArchivedPayslipSelection,
   bulkArchiveSelectedPayslips,
   confirmBulkArchivePayslips,
+  bulkDeleteSelectedPayslips,
+  confirmBulkDeletePayslips,
   bulkUnarchiveSelectedPayslips,
   confirmBulkUnarchivePayslips,
   togglePayslipDepartmentFilter,

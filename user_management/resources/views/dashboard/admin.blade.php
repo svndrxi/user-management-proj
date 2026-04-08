@@ -327,6 +327,7 @@
                 <button class="btn-bulk-clear" onclick="clearPayslipSelection()">Clear</button>
                 <button class="btn-bulk-print" onclick="bulkPrintSelectedPayslips()">Print All</button>
                 <button class="btn-bulk-archive" onclick="bulkArchiveSelectedPayslips()">Archive</button>
+                <button class="btn-bulk-delete" onclick="bulkDeleteSelectedPayslips()">Delete</button>
               </div>
               <button class="btn-import" onclick="openImportModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -910,6 +911,25 @@
     <div class="modal-footer" style="justify-content:center;">
       <button class="btn-cancel" onclick="closeModal('bulkUnarchivePayslipModal')">Cancel</button>
       <button class="btn-confirm-unarchive" onclick="confirmBulkUnarchivePayslips()">Unarchive Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK DELETE PAYSLIP CONFIRM MODAL -->
+<div class="modal-overlay" id="bulkDeletePayslipModal">
+  <div class="modal modal-delete" style="max-width:400px;">
+    <div class="modal-body">
+      <div class="delete-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Delete Payslips</p>
+      <p class="delete-sub">Are you sure you want to permanently delete <strong id="bulkDeletePayslipCount">0 selected payslip(s)</strong>? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('bulkDeletePayslipModal')">Cancel</button>
+      <button class="btn-confirm-delete" onclick="confirmBulkDeletePayslips()">Delete Selected</button>
     </div>
   </div>
 </div>
