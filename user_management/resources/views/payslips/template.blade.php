@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LRA_Payslip___employee_id__</title>
   <style>
-    @page { size: A4; margin: 0.4in; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
@@ -14,7 +13,7 @@
       background: #fff;
     }
     .container {
-      width: 65%;
+      width: 72%;
       border: 1px solid #000;
       margin: 0 auto;
     }
@@ -25,42 +24,28 @@
       text-align: center;
     }
     .header-top {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 4px;
+      width:100%; 
+      border-collapse:collapse; 
+      margin-bottom:4px;
     }
     .logo {
-      width: 60px;
-      height: 60px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      background: #0a5ba8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: bold;
-      font-size: 16px;
+      width: 60px; vertical-align: middle; padding-right: 10px; padding-left: 115px;
     }
-    .logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      border-radius: 50%;
+    .logo-img {
+      width:72px; height:72px; border-radius:50%; display:block;
     }
-    .org-info { text-align: center; }
-    .org-name { font-weight: bold; font-size: 13px; margin-bottom: 1px; }
-    .org-address { font-size: 10px; line-height: 1.2; }
+    .org-info { vertical-align: middle; text-align: center; padding-right:115px;}
+    .org-name { font-weight: bold; font-size: 10px; margin-bottom: 1px; }
+    .org-address { font-size: 8px; line-height: 1.2; }
     .slip-title {
       text-align: center;
       font-weight: bold;
-      font-size: 13px;
+      font-size: 12px;
       text-decoration: underline;
+      padding-top: 20px;
       margin: 3px 0 1px;
     }
-    .slip-dept { text-align: center; font-size: 10px; }
+    .slip-dept { text-align: left; padding:10px 0 0 138px; font-size: 11px; }
 
     /* ── CONTENT ── */
     .content { padding: 8px 10px; }
@@ -94,6 +79,7 @@
       margin: 4px 0 0;
     }
     .section-header .right { float: right; }
+    .right {padding-right:10%;}
 
     /* ── EARNINGS TABLE ── */
     .earnings-table {
@@ -125,7 +111,7 @@
     /* c1: category label - wide enough for longest text "HDMF-Multi Purpose Loan" */
     .ded-table .c1 { width: 20%;}
     /* c2: sub-item label */
-    .ded-table .c2 { width: 20%; }
+    .ded-table .c2 { width: 36%; }
     /* c3: amount */
     .ded-table .c3 { width: 25%; text-align: right; padding-right: 0; }
 
@@ -138,35 +124,34 @@
 
     /* ── NET PAY ── */
     .net-pay-section {
+      width:100%; 
+      border-collapse:collapse; 
+      font-weight:bold; 
+      font-size:11px; 
       padding: 3px 0;
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-      font-size: 11px;
-      align-items: center;
     }
 
-  /* ── PAYOUT TABLE ── */
-.payout-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 10px;
-  table-layout: fixed;
-}
-.payout-table th, .payout-table td {
-  padding: 1px 3px;
-}
-.payout-table th:first-child, .payout-table td:first-child { width: 20%; text-align: left; }
-.payout-table th:nth-child(2), .payout-table td:nth-child(2) { width: 60%; text-align: center; }
-.payout-table th:last-child, .payout-table td:last-child { width: 20%; text-align: right; }
+      /* ── PAYOUT TABLE ── */
+    .payout-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      table-layout: fixed;
+    }
+    .payout-table th, .payout-table td {
+      padding: 1px 3px;
+    }
+    .payout-table th:first-child, .payout-table td:first-child { width: 20%; text-align: left; }
+    .payout-table th:nth-child(2), .payout-table td:nth-child(2) { width: 60%; text-align: center; }
+    .payout-table th:last-child, .payout-table td:last-child { width: 20%; text-align: right; }
 
     /* ── FOOTER ── */
-    .footer-note { font-size: 6px; margin-top: 6px; line-height: 1.2; }
-    .form-code { text-align: right; font-size: 8px; margin: 0 auto; width: 62%; }
+    .footer-note { font-size: 8px; margin-top: 6px; line-height: 1.2; }
+    .form-code { text-align: right; font-size: 8px; margin: 0 auto; width: 68%; }
 
     @page {
       size: A4;
-      margin: 0.4in;
+      margin: 0.5in;
       @bottom-left { content: ''; }
       @bottom-center { content: ''; }
       @bottom-right { content: ''; }
@@ -182,17 +167,20 @@
 
   <!-- HEADER -->
   <div class="header">
-    <div class="header-top">
-      <div class="logo">
-        <img src="{{ Vite::asset('resources/images/frontend/lra_logo.png') }}" alt="LRA Logo" />
-      </div>
-      <div class="org-info">
-        <div class="org-name">Land Registration Authority</div>
-        <div class="org-address">East Avenue Cor. NIA Road, Quezon City</div>
-      </div>
-    </div>
-    <div class="slip-title">PAYROLL PAYMENT SLIP</div>
-    <br>
+    <table class="header-top">
+      <tr>
+        <td class="logo">
+          <img src="{{ Vite::asset('resources/images/frontend/lra_logo.png') }}" alt="LRA Logo"
+              class="logo-img"/>
+        </td>
+        <td class="org-info">
+          <div class="org-name">Land Registration Authority</div>
+          <div class="org-address">East Avenue Cor. NIA Road, Quezon City</div>
+          <div class="slip-title">PAYROLL PAYMENT SLIP</div>
+          <br>
+        </td>
+      </tr>
+    </table>
     <div class="slip-dept">__department__</div>
   </div>
 
@@ -202,18 +190,18 @@
     <!-- Employee Info -->
     <table class="info-table">
       <tr>
-        <td class="label">Pay Period</td>
-        <td class="colon">:</td>
+        <td class="label">Pay Period:</td>
+        <td class="colon"></td>
         <td>__pay_period_label__</td>
       </tr>
       <tr>
-        <td class="label">Employee's Name</td>
-        <td class="colon">:</td>
+        <td class="label">Employee's Name:</td>
+        <td class="colon"></td>
         <td>__name__</td>
       </tr>
       <tr>
-        <td class="label">Position</td>
-        <td class="colon">:</td>
+        <td class="label">Position:</td>
+        <td class="colon"></td>
         <td>__designation__</td>
         <td class="emp-no-label">Employee No:</td>
         <td class="emp-no-val">__employee_id__</td>
@@ -463,10 +451,12 @@
     <hr class="divider">
 
     <!-- NET PAY -->
-    <div class="net-pay-section">
-      <span>**Net Pay**</span>
-      <span>__net_pay__</span>
-    </div>
+    <table style="width:100%; border-collapse:collapse; font-weight:bold; font-size:11px; padding: 3px 0;">
+      <tr>
+        <td style="text-align:left;">**Net Pay**</td>
+        <td style="text-align:right;">__net_pay__</td>
+      </tr>
+    </table>  
 
     <!-- PAYOUT TABLE -->
     <table class="payout-table">

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Payslip;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class PayslipApiController extends Controller
@@ -244,6 +246,33 @@ class PayslipApiController extends Controller
         ActivityLog::record('deleted_payslip', 'Payslip Management', "Soft-deleted payslip for {$emp_id}");
 
         return response()->json(['message' => 'Payslip deleted successfully.']);
+    }
+
+    public function pdf(Request $request, Payslip $payslip)
+    {
+        $disposition = strtolower((string) $request->query('disposition', 'attachment'));
+        if (! in_array($disposition, ['inline', 'attachment'], true)) {
+            $disposition = 'attachment';
+        }
+
+        $templateHtml = view('payslips.template')->render();
+        $templateHtml = $this->injectInlineLogoData($templateHtml);
+
+        $renderedHtml = $this->renderPayslipTemplateHtml($templateHtml, $payslip);
+
+        $pdf = Pdf::loadHTML($renderedHtml)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('isHtml5ParserEnabled', true);
+
+        $payPeriod = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m') : 'unknown';
+        $employeeId = $payslip->employee_id ?: (string) $payslip->id;
+        $employeeName = $payslip->name ?: (string) $payslip->id;
+        $fileName = "{$payPeriod}_{$employeeName}.pdf";
+
+        return $disposition === 'inline'
+            ? $pdf->stream($fileName)
+            : $pdf->download($fileName);
     }
 
     public function import(Request $request): JsonResponse
@@ -692,5 +721,210 @@ class PayslipApiController extends Controller
         }
 
         return is_finite($number) ? $number : null;
+    }
+
+    private function renderPayslipTemplateHtml(string $html, Payslip $payslip): string
+    {
+        $payPeriodIso = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m-d') : '';
+
+        $pay15Iso = $payslip->getAttribute('15th_dop')
+            ? Carbon::parse($payslip->getAttribute('15th_dop'))->format('Y-m-d')
+            : $this->computePayoutDate($payPeriodIso, 14);
+
+        $pay30Iso = $payslip->getAttribute('30th_dop')
+            ? Carbon::parse($payslip->getAttribute('30th_dop'))->format('Y-m-d')
+            : $this->computePayoutDate($payPeriodIso, 28);
+
+        $tokenValues = [
+            'employee_id' => (string) ($payslip->employee_id ?? ''),
+            'name' => (string) ($payslip->name ?? ''),
+            'department' => (string) ($payslip->department ?? ''),
+            'designation' => (string) ($payslip->designation ?? ''),
+            'pay_period_label' => $this->formatPayPeriodLabel($payPeriodIso),
+
+            // Earnings
+            'monthly_salary' => $this->formatMoneyBlankZero($payslip->monthly_salary),
+            'pera' => $this->formatMoneyBlankZero($payslip->pera),
+            'gross_amount' => $this->formatMoneyBlankZero($payslip->gross_amount),
+
+            // Deductions
+            'gsis_premium' => $this->formatMoneyBlankZero($payslip->gsis_premium),
+            'tax_withheld' => $this->formatMoneyBlankZero($payslip->tax_withheld),
+            'philhealth' => $this->formatMoneyBlankZero($payslip->philhealth),
+            'hdmf_premium' => $this->formatMoneyBlankZero($payslip->hdmf_premium),
+
+            'conso_loan' => $this->formatMoneyBlankZero($payslip->conso_loan),
+            'policy_loan' => $this->formatMoneyBlankZero($payslip->policy_loan),
+            'hdmf_loan' => $this->formatMoneyBlankZero($payslip->hdmf_loan),
+            'opt_pol_ln' => $this->formatMoneyBlankZero($payslip->opt_pol_ln),
+            'uoli' => $this->formatMoneyBlankZero($payslip->uoli),
+            'gfal_ii' => $this->formatMoneyBlankZero($payslip->gfal_ii),
+            'mpl' => $this->formatMoneyBlankZero($payslip->mpl),
+            'mpl_lite' => $this->formatMoneyBlankZero($payslip->mpl_lite),
+            'comp_ln' => $this->formatMoneyBlankZero($payslip->comp_ln),
+            'emer_ln' => $this->formatMoneyBlankZero($payslip->emer_ln),
+            'ecash_adv' => $this->formatMoneyBlankZero($payslip->ecash_adv),
+            'rel' => $this->formatMoneyBlankZero($payslip->rel),
+            'fip_g' => $this->formatMoneyBlankZero($payslip->fip_g),
+            'sri_g' => $this->formatMoneyBlankZero($payslip->sri_g),
+            'mri_h' => $this->formatMoneyBlankZero($payslip->mri_h),
+            'educ_ln' => $this->formatMoneyBlankZero($payslip->educ_ln),
+
+            'hdmf_cal' => $this->formatMoneyBlankZero($payslip->hdmf_cal),
+            'hdmg_hsng' => $this->formatMoneyBlankZero($payslip->hdmg_hsng),
+            'mri_n' => $this->formatMoneyBlankZero($payslip->mri_n),
+            'landbank_loan' => $this->formatMoneyBlankZero($payslip->landbank_loan),
+            'lraea' => $this->formatMoneyBlankZero($payslip->lraea),
+            'gabay' => $this->formatMoneyBlankZero($payslip->gabay),
+            'nards' => $this->formatMoneyBlankZero($payslip->nards),
+            'lraecc' => $this->formatMoneyBlankZero($payslip->lraecc),
+            'nhfmc' => $this->formatMoneyBlankZero($payslip->nhfmc),
+
+            'total_deductions' => $this->formatMoneyBlankZero($payslip->total_deductions),
+            'net_pay' => $this->formatMoneyBlankZero($payslip->net_pay),
+            '15th_dop' => $this->formatLongDate($pay15Iso),
+            '30th_dop' => $this->formatLongDate($pay30Iso),
+            'pay_15th' => $this->formatMoneyBlankZero($payslip->pay_15th),
+            'pay_30th' => $this->formatMoneyBlankZero($payslip->pay_30th),
+        ];
+
+        foreach ($tokenValues as $key => $value) {
+            $html = str_replace("__{$key}__", e((string) $value), $html);
+        }
+
+        $dynamicFields = [
+            ['hdmf_loan', 'HDMF Loan'],
+            ['mp2', 'MP2'],
+            ['fip_g', 'FIP-G'],
+            ['sri_g', 'SRI-G'],
+            ['fire_h', 'FIRE-H'],
+            ['fire_n', 'FIRE-N'],
+            ['honor_disallow', 'HONOR DISALLOW'],
+            ['ltcp_disallow', 'LTCP DISALLOW'],
+            ['lwop', 'LWOP'],
+            ['mri_h', 'MRI-H'],
+            ['mri_n', 'MRI-N'],
+            ['fine', 'FINE'],
+            ['help', 'HELP'],
+            ['pvb_ln', 'PVB LN'],
+            ['aom_2013_014', 'AOM 2013-014'],
+            ['cna_2009', 'CNA 2009'],
+            ['dorm_fee', 'DORM FEE'],
+        ];
+
+        $dynamicRows = '';
+        foreach ($dynamicFields as [$field, $label]) {
+            $raw = $this->toNumber($payslip->getAttribute($field));
+            if ($raw === null || $raw <= 0) {
+                continue;
+            }
+            $dynamicRows .= "\n<tr>\n"
+                . "  <td class=\"c1\"></td>\n"
+                . "  <td class=\"c2\" style=\"padding-left: 50px\">" . e($label) . "</td>\n"
+                . "  <td class=\"c3\">" . e($this->formatMoney($raw)) . "</td>\n"
+                . "</tr>\n";
+        }
+
+        return str_replace('<!--__DYNAMIC_FIELDS__-->', $dynamicRows, $html);
+    }
+
+    private function injectInlineLogoData(string $html): string
+    {
+        $logoPath = resource_path('images/frontend/lra_logo.png');
+        if (! is_file($logoPath)) {
+            return $html;
+        }
+
+        $bytes = @file_get_contents($logoPath);
+        if ($bytes === false || $bytes === '') {
+            return $html;
+        }
+
+        $dataUri = 'data:image/png;base64,' . base64_encode($bytes);
+
+        return preg_replace_callback('/<img\\b[^>]*alt="LRA Logo"[^>]*>/i', function ($matches) use ($dataUri) {
+            $tag = $matches[0];
+            if (preg_match('/\\bsrc\\s*=\\s*\"[^\"]*\"/i', $tag) === 1) {
+                return preg_replace('/\\bsrc\\s*=\\s*\"[^\"]*\"/i', 'src="' . $dataUri . '"', $tag, 1) ?? $tag;
+            }
+            return $tag;
+        }, $html, 1) ?? $html;
+    }
+
+    private function toNumber(mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return is_finite((float) $value) ? (float) $value : null;
+        }
+
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^0-9.\\-]/', '', str_replace(',', '', $string)) ?? '';
+        if ($normalized === '' || $normalized === '-' || $normalized === '.') {
+            return null;
+        }
+
+        $number = (float) $normalized;
+        return is_finite($number) ? $number : null;
+    }
+
+    private function formatMoney(float $value): string
+    {
+        return number_format($value, 2, '.', ',');
+    }
+
+    private function formatMoneyBlankZero(mixed $value): string
+    {
+        $n = $this->toNumber($value);
+        if ($n === null || $n == 0.0) {
+            return '';
+        }
+        return $this->formatMoney($n);
+    }
+
+    private function formatLongDate(string $isoDate): string
+    {
+        if ($isoDate === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($isoDate)->format('F d, Y');
+        } catch (\Throwable) {
+            return $isoDate;
+        }
+    }
+
+    private function formatPayPeriodLabel(string $isoDate): string
+    {
+        if ($isoDate === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($isoDate)->format('F Y');
+        } catch (\Throwable) {
+            return $isoDate;
+        }
+    }
+
+    private function computePayoutDate(string $payPeriodIso, int $day): string
+    {
+        if ($payPeriodIso === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($payPeriodIso)->setDay($day)->format('Y-m-d');
+        } catch (\Throwable) {
+            return '';
+        }
     }
 }
