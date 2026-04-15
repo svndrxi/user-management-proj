@@ -2378,10 +2378,15 @@ function formatPayPeriodLabel(isoDate) {
 function computePayoutDate(payPeriodIso, day) {
   if (!payPeriodIso) return '';
   const normalized = String(payPeriodIso).slice(0, 10);
-  const d = new Date(`${normalized}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '';
-  d.setDate(day);
-  return d.toISOString().slice(0, 10);
+  const [year, month] = normalized.split('-').map(Number);
+  if (!year || !month || Number.isNaN(year) || Number.isNaN(month)) return '';
+
+  const date = new Date(year, month - 1, 1);
+  date.setDate(day);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function getPayslipTemplateParts() {
@@ -2412,8 +2417,12 @@ function renderPayslipPrintBody(bodyTemplate, payslipRecord) {
 
   const payPeriodIso = String(p.pay_period || p.payPeriod || '').slice(0, 10);
 
-  const pay15Iso = p['15th_dop'] ? String(p['15th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 14);
-  const pay30Iso = p['30th_dop'] ? String(p['30th_dop']).slice(0, 10) : computePayoutDate(payPeriodIso, 28);
+  const pay15Iso = p['15th_dop']
+    ? String(p['15th_dop']).slice(0, 10)
+    : computePayoutDate(payPeriodIso, 14);
+  const pay30Iso = p['30th_dop']
+    ? String(p['30th_dop']).slice(0, 10)
+    : computePayoutDate(payPeriodIso, 28);
 
   const tokenValues = {
     employee_id: p.employee_id || '',
@@ -2605,174 +2614,32 @@ function printViewedPayslip() {
   printPayslip(selectedPayslipViewId);
 }
 
-let pdfLibraryPromise = null;
-
-function loadExternalScript(src) {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[data-ext-src="${src}"]`);
-    if (existing) {
-      if (existing.dataset.loaded === 'true') {
-        resolve();
-        return;
-      }
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.dataset.extSrc = src;
-    script.addEventListener('load', () => {
-      script.dataset.loaded = 'true';
-      resolve();
-    }, { once: true });
-    script.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
-    document.head.appendChild(script);
-  });
-}
-
-function ensurePdfLibrariesLoaded() {
-  if (window.html2canvas && window.jspdf?.jsPDF) {
-    return Promise.resolve();
-  }
-
-  if (!pdfLibraryPromise) {
-    pdfLibraryPromise = Promise.all([
-      loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
-      loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-    ]).then(() => {
-      if (!window.html2canvas || !window.jspdf?.jsPDF) {
-        throw new Error('PDF libraries failed to initialize.');
-      }
-    });
-  }
-
-  return pdfLibraryPromise;
-}
-
 async function downloadViewedPayslipPdf() {
   if (!selectedPayslipViewId) {
     showToast('No payslip selected for download.', 'info');
     return;
   }
 
-  let exportFrame = null;
+  const link = document.createElement('a');
+  link.href = `/api/payslips/${selectedPayslipViewId}/pdf?disposition=attachment`;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.download = '';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 
-  try {
-    await ensurePdfLibrariesLoaded();
-
-    const templateParts = getPayslipTemplateParts();
-    if (!templateParts) {
-      throw new Error('Failed to load payslip template.');
-    }
-
-    let record;
-    try {
-      record = await dataSource.payslips.get(selectedPayslipViewId);
-    } catch (e) {
-      throw new Error(e.message || 'Failed to load payslip from server.');
-    }
-
-    const payslipData = record?.data ?? record ?? {};
-    const renderedBody = renderPayslipPrintBody(templateParts.bodyTemplate, payslipData);
-    const exportCss = `${templateParts.styleCss || ''}
-      html, body { 
-        margin: 0 !important; 
-        padding: 0 !important; 
-        background: #ffffff !important; 
-        width: 100%;
-      }
-    `;
-
-    exportFrame = document.createElement('iframe');
-    exportFrame.style.position = 'fixed';
-    exportFrame.style.left = '-12000px';
-    exportFrame.style.top = '0';
-    exportFrame.style.width = '900px';
-    exportFrame.style.height = '1123px';
-    exportFrame.style.opacity = '0';
-    exportFrame.style.pointerEvents = 'none';
-    document.body.appendChild(exportFrame);
-
-    await new Promise((resolve, reject) => {
-      const onLoad = () => resolve();
-      const onError = () => reject(new Error('Failed to prepare payslip export view.'));
-      exportFrame.addEventListener('load', onLoad, { once: true });
-      exportFrame.addEventListener('error', onError, { once: true });
-      exportFrame.srcdoc = renderPayslipDocumentHtml(renderedBody, exportCss);
-    });
-
-    const exportDoc = exportFrame.contentDocument;
-    if (!exportDoc?.body) {
-      throw new Error('Payslip export document is not ready.');
-    }
-
-    const exportTarget = exportDoc.querySelector('.container') || exportDoc.body;
-    if (!exportTarget) {
-      throw new Error('Failed to find payslip container in export view.');
-    }
-
-    const canvas = await window.html2canvas(exportDoc.body, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      allowTaint: true,
-    });
-
-    if (!canvas) {
-      throw new Error('Failed to capture payslip as image.');
-    }
-
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-
-    const imageData = canvas.toDataURL('image/png');
-    
-    // A4 dimensions in mm (210x297)
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-    
-    // Canvas dimensions match A4 at 96 DPI (794x1123)
-    const imgWidth = pdfWidth;
-    const imgHeight = pdfHeight;
-    
-    // Add image to PDF - scaled to fit one page
-    pdf.addImage(imageData, 'PNG', 0, 0, imgWidth, imgHeight);
-
-    const matched = payslipsData.find((p) => p.id === selectedPayslipViewId);
-    const empId = matched?.empId || matched?.employee_id || `id-${selectedPayslipViewId}`;
-    
-    pdf.save(`Payslip-${empId}.pdf`);
-    showToast('Payslip PDF downloaded successfully.', 'success');
-  } catch (e) {
-    console.error('PDF Download Error:', e);
-    showToast(e.message || 'Failed to download PDF. Please try again.', 'error');
-  } finally {
-    if (exportFrame?.parentNode) {
-      exportFrame.remove();
-    }
-  }
+  showToast('Payslip PDF download started.', 'success');
 }
 
-
 async function printPayslip(payslipId) {
-  const templateParts = getPayslipTemplateParts();
-  if (!templateParts) return;
-
-  let record;
-  try {
-    record = await dataSource.payslips.get(payslipId);
-  } catch (e) {
-    showToast(e.message || 'Failed to load payslip from server.', 'error');
+  const win = window.open(`/api/payslips/${payslipId}/pdf?disposition=inline`, '_blank');
+  if (!win) {
+    showToast('Please allow popups to print the payslip.', 'error');
     return;
   }
 
-  const payslipData = record?.data ?? record ?? {};
-  const renderedBody = renderPayslipPrintBody(templateParts.bodyTemplate, payslipData);
-  openPayslipPrintWindow([renderedBody], templateParts.styleCss);
+  showToast('Payslip PDF opened. Use the PDF viewer to print.', 'success');
 }
 
 async function bulkPrintSelectedPayslips() {
