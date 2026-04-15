@@ -266,7 +266,7 @@ class PayslipApiController extends Controller
         $payPeriod = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m') : 'unknown';
         $employeeId = $payslip->employee_id ?: (string) $payslip->id;
         $employeeName = $payslip->name ?: (string) $payslip->id;
-        $fileName = "{$payPeriod}_{$employeeName}.pdf";
+        $fileName = "{$employeeId}_{$payPeriod}.pdf";
 
         return $disposition === 'inline'
             ? $pdf->stream($fileName)
