@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PayslipMailer;
 use App\Models\ActivityLog;
 use App\Models\Payslip;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -10,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -915,5 +917,39 @@ class PayslipApiController extends Controller
         } catch (\Throwable) {
             return '';
         }
+    }
+
+    public function sendMail(Request $request, Payslip $payslip): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $templateHtml = view('payslips.template')->render();
+        $templateHtml = $this->injectInlineLogoData($templateHtml);
+        $renderedHtml = $this->renderPayslipTemplateHtml($templateHtml, $payslip);
+
+        $pdf = Pdf::loadHTML($renderedHtml)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('isHtml5ParserEnabled', true);
+
+        $payPeriod = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m') : 'unknown';
+        $employeeName = Str::slug($payslip->name ?: (string) $payslip->id, '_');
+        $fileName = "{$payPeriod}_{$employeeName}.pdf";
+
+        Mail::to($validated['email'])->send(
+            new PayslipMailer($payslip, $pdf->output(), $fileName)
+        );
+
+        ActivityLog::record(
+            'emailed_payslip',
+            'Payslip Management',
+            "Emailed payslip for {$payslip->employee_id} to {$validated['email']}"
+        );
+
+        return response()->json([
+            'message' => 'Payslip email sent successfully.',
+        ]);
     }
 }

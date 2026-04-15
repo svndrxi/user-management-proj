@@ -249,5 +249,11 @@ export const dataSource = {
         body: form,
       });
     },
+    sendMail(id, email) {
+      return request(`/payslips/${id}/send-mail`, {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+    },
   },
 };
