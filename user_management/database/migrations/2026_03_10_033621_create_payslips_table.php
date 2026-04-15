@@ -73,8 +73,8 @@ return new class extends Migration
             $table->decimal('net_pay', 12, 2)->nullable();
             $table->decimal('pay_15th', 12, 2)->nullable();
             $table->decimal('pay_30th', 12, 2)->nullable();
-            $table->date('15th_dop')->nullable();
-            $table->date('30th_dop')->nullable();
+            //$table->date('15th_dop')->nullable();
+            //$table->date('30th_dop')->nullable();
             $table->decimal('aom_2013_014', 12, 2)->nullable();
             $table->decimal('cna_2009', 12, 2)->nullable();
             $table->decimal('dorm_fee', 12, 2)->nullable();

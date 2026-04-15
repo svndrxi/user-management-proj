@@ -71,8 +71,6 @@ class Payslip extends Model
         'net_pay',
         'pay_15th',
         'pay_30th',
-        '15th_dop',
-        '30th_dop',
         'aom_2013_014',
         'cna_2009',
         'dorm_fee',

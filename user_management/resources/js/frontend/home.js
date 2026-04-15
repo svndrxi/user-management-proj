@@ -2417,12 +2417,8 @@ function renderPayslipPrintBody(bodyTemplate, payslipRecord) {
 
   const payPeriodIso = String(p.pay_period || p.payPeriod || '').slice(0, 10);
 
-  const pay15Iso = p['15th_dop']
-    ? String(p['15th_dop']).slice(0, 10)
-    : computePayoutDate(payPeriodIso, 14);
-  const pay30Iso = p['30th_dop']
-    ? String(p['30th_dop']).slice(0, 10)
-    : computePayoutDate(payPeriodIso, 28);
+  const pay15Iso = computePayoutDate(payPeriodIso, 15);
+  const pay30Iso = computePayoutDate(payPeriodIso, 30);
 
   const tokenValues = {
     employee_id: p.employee_id || '',
@@ -2518,9 +2514,28 @@ function renderPayslipPrintBody(bodyTemplate, payslipRecord) {
 }
 
 function openPayslipPrintWindow(renderedBodies, styleCss) {
-  const printWin = window.open('', '_blank', 'width=850,height=750');
-  if (!printWin) {
-    showToast('Please allow popups to print the payslip.', 'error');
+  const iframeId = 'payslipPrintIframe';
+  const existing = document.getElementById(iframeId);
+  if (existing && existing.parentNode) {
+    existing.parentNode.removeChild(existing);
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.id = iframeId;
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.visibility = 'hidden';
+  iframe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    showToast('Could not create print frame.', 'error');
+    iframe.remove();
     return false;
   }
 
@@ -2548,21 +2563,26 @@ ${pagesHtml}
 </body>
 </html>`;
 
-  printWin.document.write(printHtml);
-  printWin.document.close();
-  printWin.focus();
+  doc.open();
+  doc.write(printHtml);
+  doc.close();
 
+  let printTriggered = false;
   const triggerPrint = () => {
+    if (printTriggered) return;
+    printTriggered = true;
+
     try {
-      printWin.focus();
-      printWin.print();
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
     } catch (_) {
       showToast('Print dialog was blocked. Please use Ctrl+P in the payslip window.', 'info');
     }
   };
 
-  printWin.addEventListener('load', triggerPrint, { once: true });
+  iframe.addEventListener('load', triggerPrint, { once: true });
   setTimeout(triggerPrint, 350);
+  setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
   return true;
 }
 
@@ -2582,28 +2602,21 @@ ${renderedBody}
 }
 
 async function openViewPayslipModal(payslipId) {
-  const templateParts = getPayslipTemplateParts();
-  if (!templateParts) return;
-
-  let record;
-  try {
-    record = await dataSource.payslips.get(payslipId);
-  } catch (e) {
-    showToast(e.message || 'Failed to load payslip from server.', 'error');
-    return;
-  }
-
   const frame = document.getElementById('viewPayslipFrame');
   if (!frame) {
     showToast('Payslip preview frame is missing in the page.', 'error');
     return;
   }
 
-  const payslipData = record?.data ?? record ?? {};
-  const renderedBody = renderPayslipPrintBody(templateParts.bodyTemplate, payslipData);
-  frame.srcdoc = renderPayslipDocumentHtml(renderedBody, templateParts.styleCss);
-  selectedPayslipViewId = payslipId;
-  openModal('viewPayslipModal');
+  const previewUrl = `/api/payslips/${payslipId}/preview`;
+  const handleLoad = () => {
+    frame.removeEventListener('load', handleLoad);
+    selectedPayslipViewId = payslipId;
+    openModal('viewPayslipModal');
+  };
+
+  frame.addEventListener('load', handleLoad, { once: true });
+  frame.src = previewUrl;
 }
 
 function printViewedPayslip() {
@@ -2633,13 +2646,45 @@ async function downloadViewedPayslipPdf() {
 }
 
 async function printPayslip(payslipId) {
-  const win = window.open(`/api/payslips/${payslipId}/pdf?disposition=inline`, '_blank');
-  if (!win) {
-    showToast('Please allow popups to print the payslip.', 'error');
-    return;
+  const iframeId = 'payslipPrintPdfFrame';
+  const existing = document.getElementById(iframeId);
+  if (existing && existing.parentNode) {
+    existing.parentNode.removeChild(existing);
   }
 
-  showToast('Payslip PDF opened. Use the PDF viewer to print.', 'success');
+  const iframe = document.createElement('iframe');
+  iframe.id = iframeId;
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.visibility = 'hidden';
+  iframe.setAttribute('aria-hidden', 'true');
+
+  iframe.src = `/api/payslips/${payslipId}/pdf?disposition=inline`;
+  document.body.appendChild(iframe);
+
+  let printTriggered = false;
+  const triggerPrint = () => {
+    if (printTriggered) return;
+    printTriggered = true;
+
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (_) {
+      showToast('Could not immediately open the print dialog. Please use the PDF viewer to print.', 'info');
+    }
+  };
+
+  iframe.addEventListener('load', () => {
+    setTimeout(triggerPrint, 100);
+  }, { once: true });
+
+  setTimeout(triggerPrint, 500);
+  setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
 }
 
 async function bulkPrintSelectedPayslips() {

@@ -101,8 +101,6 @@ class PayslipApiController extends Controller
         'net_pay'           => ['nullable', 'numeric'],
         'pay_15th'          => ['nullable', 'numeric'],
         'pay_30th'          => ['nullable', 'numeric'],
-        '15th_dop'          => ['nullable', 'date'],
-        '30th_dop'          => ['nullable', 'date'],
 
         // Others
         'aom_2013_014'      => ['nullable', 'numeric', 'min:0'],
@@ -190,8 +188,6 @@ class PayslipApiController extends Controller
         'net_pay'           => ['sometimes', 'nullable', 'numeric'],
         'pay_15th'          => ['sometimes', 'nullable', 'numeric'],
         'pay_30th'          => ['sometimes', 'nullable', 'numeric'],
-        '15th_dop'          => ['sometimes', 'nullable', 'date'],
-        '30th_dop'          => ['sometimes', 'nullable', 'date'],
 
         // Others
         'aom_2013_014'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
@@ -273,6 +269,17 @@ class PayslipApiController extends Controller
         return $disposition === 'inline'
             ? $pdf->stream($fileName)
             : $pdf->download($fileName);
+    }
+
+    public function preview(Payslip $payslip)
+    {
+        $templateHtml = view('payslips.template')->render();
+        $templateHtml = $this->injectInlineLogoData($templateHtml);
+
+        $renderedHtml = $this->renderPayslipTemplateHtml($templateHtml, $payslip);
+
+        return response($renderedHtml, 200)
+            ->header('Content-Type', 'text/html');
     }
 
     public function import(Request $request): JsonResponse
@@ -371,8 +378,6 @@ class PayslipApiController extends Controller
                         'net_pay' => ['net_pay', 'netpay'],
                         'pay_15th' => ['pay_15th', '15th', 'first_payout_amount', 'firstpayoutamount'],
                         'pay_30th' => ['pay_30th', '30th', 'second_payout_amount', 'secondpayoutamount'],
-                        '15th_dop' => ['15th_dop', 'first_payout_date', 'firstpayoutdate'],
-                        '30th_dop' => ['30th_dop', 'second_payout_date', 'secondpayoutdate'],
                     ];
 
                     $get = function (string $field) use ($row, $aliases) {
@@ -482,17 +487,6 @@ class PayslipApiController extends Controller
                             continue;
                         }
                         $payload[$field] = $number;
-                    }
-
-                    foreach (['15th_dop', '30th_dop'] as $field) {
-                        $value = $get($field);
-                        if ($value === null) {
-                            continue;
-                        }
-                        $date = $this->normalizePayrollDate($value);
-                        if ($date !== null) {
-                            $payload[$field] = $date;
-                        }
                     }
 
                     $existing = Payslip::query()
@@ -727,13 +721,8 @@ class PayslipApiController extends Controller
     {
         $payPeriodIso = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m-d') : '';
 
-        $pay15Iso = $payslip->getAttribute('15th_dop')
-            ? Carbon::parse($payslip->getAttribute('15th_dop'))->format('Y-m-d')
-            : $this->computePayoutDate($payPeriodIso, 14);
-
-        $pay30Iso = $payslip->getAttribute('30th_dop')
-            ? Carbon::parse($payslip->getAttribute('30th_dop'))->format('Y-m-d')
-            : $this->computePayoutDate($payPeriodIso, 28);
+        $pay15Iso = $this->computePayoutDate($payPeriodIso, 14);
+        $pay30Iso = $this->computePayoutDate($payPeriodIso, 28);
 
         $tokenValues = [
             'employee_id' => (string) ($payslip->employee_id ?? ''),
