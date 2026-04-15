@@ -892,6 +892,19 @@ ul { list-style: none; }
     color: var(--gray-text);
 }
 
+.bulk-payslip-actions-footer {
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.bulk-payslip-actions-left,
+.bulk-payslip-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .btn-bulk-email {
     display: inline-flex;
     align-items: center;
@@ -904,6 +917,24 @@ ul { list-style: none; }
     background: var(--navy);
     box-shadow: 0 2px 6px rgba(10,31,110,0.25);
     transition: background var(--transition), box-shadow var(--transition);
+}
+
+.btn-bulk-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--white);
+     background: var(--navy);
+    box-shadow: 0 2px 6px rgba(10,31,110,0.25);
+    transition: background var(--transition), box-shadow var(--transition);
+}
+
+.btn-bulk-download:hover {
+    background: var(--navy-light);
 }
 
 .btn-bulk-email:hover {
@@ -1158,6 +1189,18 @@ ul { list-style: none; }
 
     .bulk-payslip-filter-grid {
         grid-template-columns: 1fr;
+    }
+
+    .bulk-payslip-actions-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .bulk-payslip-actions-left,
+    .bulk-payslip-actions-right {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
     }
 
     #payslipMonthYearDropdown {

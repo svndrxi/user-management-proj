@@ -2524,7 +2524,7 @@ function getBulkPayslipTargetRows() {
   });
 }
 
-function submitBulkPayslipPrint(payslipIds) {
+function submitBulkPayslipPdf(payslipIds, disposition = 'inline') {
   if (!Array.isArray(payslipIds) || payslipIds.length === 0) return;
 
   const csrfToken = document
@@ -2533,7 +2533,7 @@ function submitBulkPayslipPrint(payslipIds) {
 
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = '/api/payslips/bulk-pdf?disposition=inline';
+  form.action = `/api/payslips/bulk-pdf?disposition=${encodeURIComponent(disposition)}`;
   form.target = '_blank';
   form.style.display = 'none';
 
@@ -2565,8 +2565,19 @@ function bulkPrintFromFilters() {
     return;
   }
 
-  submitBulkPayslipPrint(targetRows.map((row) => row.id));
+  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline');
   showToast(`${targetRows.length} payslip(s) preparing for server-side print.`, 'success');
+}
+
+function bulkDownloadFromFilters() {
+  const targetRows = getBulkPayslipTargetRows();
+  if (targetRows.length === 0) {
+    showToast('No payslips match the selected filter.', 'info');
+    return;
+  }
+
+  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'attachment');
+  showToast(`${targetRows.length} payslip(s) download started.`, 'success');
 }
 
 async function bulkEmailFromFilters() {
@@ -2612,7 +2623,7 @@ async function bulkPrintSelectedPayslips() {
   if (selectedPayslipIds.size === 0) return;
 
   const selectedIds = Array.from(selectedPayslipIds);
-  submitBulkPayslipPrint(selectedIds);
+  submitBulkPayslipPdf(selectedIds, 'inline');
 
   showToast(`${selectedIds.length} payslip(s) preparing for server-side print.`, 'success');
 }
@@ -2820,6 +2831,7 @@ Object.assign(window, {
   clearPayslipSelection,
   openBulkPayslipActionModal,
   bulkPrintFromFilters,
+  bulkDownloadFromFilters,
   bulkEmailFromFilters,
   bulkPrintSelectedPayslips,
   clearArchivedPayslipSelection,
