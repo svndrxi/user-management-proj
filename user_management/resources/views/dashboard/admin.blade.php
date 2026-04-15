@@ -966,10 +966,15 @@
       </div>
       <p class="bulk-payslip-note">Use Department only, Month & Year only, or a combined filter to target payslips for bulk actions.</p>
     </div>
-    <div class="modal-footer" style="justify-content:center;">
-      <button class="btn-bulk-print" onclick="bulkPrintFromFilters()">Print</button>
-      <button class="btn-bulk-email" onclick="bulkEmailFromFilters()">Email</button>
-      <button class="btn-back" onclick="closeModal('bulkPayslipActionModal')">Back</button>
+    <div class="modal-footer bulk-payslip-actions-footer">
+      <div class="bulk-payslip-actions-left">
+        <button class="btn-bulk-print" onclick="bulkPrintFromFilters()">Print</button>
+        <button class="btn-bulk-download" onclick="bulkDownloadFromFilters()">Download</button>
+        <button class="btn-bulk-email" onclick="bulkEmailFromFilters()">Email</button>
+      </div>
+      <div class="bulk-payslip-actions-right">
+        <button class="btn-back" onclick="closeModal('bulkPayslipActionModal')">Back</button>
+      </div>
     </div>
   </div>
 </div>
