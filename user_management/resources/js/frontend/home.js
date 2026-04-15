@@ -1615,6 +1615,9 @@ function renderPayslips() {
           <button class="btn-view" onclick="openViewPayslipModal(${p.id})" title="View Payslip">
             ${iconEye}
           </button>
+          <button class="btn-email" onclick="emailPayslip(${p.id})" title="Email Payslip">
+            ${iconMail}
+          </button>
           <button class="btn-print" onclick="printPayslip(${p.id})" title="Print Payslip">
             ${iconPrint}
           </button>
@@ -2414,10 +2417,116 @@ async function printPayslip(payslipId) {
   setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
 }
 
-async function bulkPrintSelectedPayslips() {
-  if (selectedPayslipIds.size === 0) return;
+function getEmailByEmployeeId(empId) {
+  const key = String(empId || '').trim().toLowerCase();
+  if (!key) return '';
 
-  const selectedIds = Array.from(selectedPayslipIds);
+  const user = usersData.find((u) => String(u.empId || '').trim().toLowerCase() === key);
+  return String(user?.email || '').trim();
+}
+
+async function emailPayslip(payslipId) {
+  const payslip = payslipsData.find((p) => p.id === payslipId);
+  if (!payslip) {
+    showToast('Payslip not found.', 'error');
+    return;
+  }
+
+  const recipientEmail = getEmailByEmployeeId(payslip.empId);
+  if (!recipientEmail) {
+    showToast(`No email found for Employee ID ${payslip.empId}.`, 'error');
+    return;
+  }
+
+  try {
+    await dataSource.payslips.sendMail(payslip.id, recipientEmail);
+    showToast(`Payslip emailed to ${recipientEmail}.`, 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to send payslip email.', 'error');
+  }
+}
+
+function populateBulkPayslipActionFilters() {
+  const departmentSelect = document.getElementById('bulkPayslipDepartment');
+  const monthSelect = document.getElementById('bulkPayslipMonth');
+  const yearSelect = document.getElementById('bulkPayslipYear');
+  if (!departmentSelect || !monthSelect || !yearSelect) return;
+
+  const currentDepartment = departmentSelect.value;
+  const currentMonth = monthSelect.value;
+  const currentYear = yearSelect.value;
+
+  const departments = getUniqueDepartments();
+  const years = getAvailableYears();
+  const months = getAllMonths();
+
+  departmentSelect.innerHTML = '<option value="">All Departments</option>';
+  departments.forEach((department) => {
+    const option = document.createElement('option');
+    option.value = department;
+    option.textContent = department;
+    departmentSelect.appendChild(option);
+  });
+
+  monthSelect.innerHTML = '<option value="">All Months</option>';
+  months.forEach(({ value, label }) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    monthSelect.appendChild(option);
+  });
+
+  yearSelect.innerHTML = '<option value="">All Years</option>';
+  years.forEach((year) => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    yearSelect.appendChild(option);
+  });
+
+  departmentSelect.value = departments.includes(currentDepartment) ? currentDepartment : '';
+  monthSelect.value = months.some((month) => month.value === currentMonth) ? currentMonth : '';
+  yearSelect.value = years.includes(currentYear) ? currentYear : '';
+}
+
+function openBulkPayslipActionModal() {
+  populateBulkPayslipActionFilters();
+
+  const departmentSelect = document.getElementById('bulkPayslipDepartment');
+  const monthSelect = document.getElementById('bulkPayslipMonth');
+  const yearSelect = document.getElementById('bulkPayslipYear');
+
+  if (departmentSelect) departmentSelect.value = payslipDepartmentFilter || '';
+  if (monthSelect) monthSelect.value = payslipMonthFilter || '';
+  if (yearSelect) yearSelect.value = payslipYearFilter || '';
+
+  openModal('bulkPayslipActionModal');
+}
+
+function getBulkPayslipTargetRows() {
+  const department = document.getElementById('bulkPayslipDepartment')?.value || '';
+  const month = document.getElementById('bulkPayslipMonth')?.value || '';
+  const year = document.getElementById('bulkPayslipYear')?.value || '';
+
+  if (!department && !month && !year) {
+    showToast('Select Department or Month/Year before running a bulk action.', 'info');
+    return [];
+  }
+
+  return payslipsData.filter((payslip) => {
+    const departmentMatches = !department || String(payslip.department || '') === department;
+
+    const [payYear, payMonth] = String(payslip.payPeriod || '').split('-');
+    const monthMatches = !month || payMonth === month;
+    const yearMatches = !year || payYear === year;
+
+    return departmentMatches && monthMatches && yearMatches;
+  });
+}
+
+function submitBulkPayslipPrint(payslipIds) {
+  if (!Array.isArray(payslipIds) || payslipIds.length === 0) return;
+
   const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     ?.getAttribute('content');
@@ -2436,7 +2545,7 @@ async function bulkPrintSelectedPayslips() {
     form.appendChild(csrfInput);
   }
 
-  selectedIds.forEach((id) => {
+  payslipIds.forEach((id) => {
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'payslip_ids[]';
@@ -2447,6 +2556,63 @@ async function bulkPrintSelectedPayslips() {
   document.body.appendChild(form);
   form.submit();
   form.remove();
+}
+
+function bulkPrintFromFilters() {
+  const targetRows = getBulkPayslipTargetRows();
+  if (targetRows.length === 0) {
+    showToast('No payslips match the selected filter.', 'info');
+    return;
+  }
+
+  submitBulkPayslipPrint(targetRows.map((row) => row.id));
+  showToast(`${targetRows.length} payslip(s) preparing for server-side print.`, 'success');
+}
+
+async function bulkEmailFromFilters() {
+  const targetRows = getBulkPayslipTargetRows();
+  if (targetRows.length === 0) {
+    showToast('No payslips match the selected filter.', 'info');
+    return;
+  }
+
+  const queued = [];
+  let skippedNoEmail = 0;
+
+  targetRows.forEach((row) => {
+    const recipientEmail = getEmailByEmployeeId(row.empId);
+    if (!recipientEmail) {
+      skippedNoEmail += 1;
+      return;
+    }
+    queued.push(dataSource.payslips.sendMail(row.id, recipientEmail));
+  });
+
+  if (queued.length === 0) {
+    showToast('No recipient email found for the filtered payslips.', 'error');
+    return;
+  }
+
+  const results = await Promise.allSettled(queued);
+  const sentCount = results.filter((result) => result.status === 'fulfilled').length;
+  const failedCount = results.length - sentCount;
+
+  if (sentCount > 0) {
+    openModal('bulkEmailSuccessModal');
+  }
+
+  const summaryParts = [`Sent ${sentCount} email(s)`];
+  if (failedCount > 0) summaryParts.push(`${failedCount} failed`);
+  if (skippedNoEmail > 0) summaryParts.push(`${skippedNoEmail} skipped (no email)`);
+
+  showToast(summaryParts.join(', ') + '.', failedCount > 0 ? 'info' : 'success');
+}
+
+async function bulkPrintSelectedPayslips() {
+  if (selectedPayslipIds.size === 0) return;
+
+  const selectedIds = Array.from(selectedPayslipIds);
+  submitBulkPayslipPrint(selectedIds);
 
   showToast(`${selectedIds.length} payslip(s) preparing for server-side print.`, 'success');
 }
@@ -2455,6 +2621,7 @@ async function bulkPrintSelectedPayslips() {
 const iconEye = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
 const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
 const iconArchive = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
+const iconMail = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-16 9h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
 const iconPrint = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`;
 const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
 
@@ -2581,6 +2748,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   updateFilterUI();
+  populateBulkPayslipActionFilters();
 });
 
 Object.assign(window, {
@@ -2642,6 +2810,7 @@ Object.assign(window, {
   handleImportDrop,
   confirmImport,
   printPayslip,
+  emailPayslip,
   printViewedPayslip,
   downloadViewedPayslipPdf,
   togglePayslipSelection,
@@ -2649,6 +2818,9 @@ Object.assign(window, {
   toggleSelectAllVisiblePayslips,
   toggleSelectAllVisibleArchivedPayslips,
   clearPayslipSelection,
+  openBulkPayslipActionModal,
+  bulkPrintFromFilters,
+  bulkEmailFromFilters,
   bulkPrintSelectedPayslips,
   clearArchivedPayslipSelection,
   bulkArchiveSelectedPayslips,

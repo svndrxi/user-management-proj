@@ -325,10 +325,13 @@
               <div id="payslipBulkActions" class="bulk-actions" style="display:none;">
                 <span class="bulk-count" id="payslipSelectedCount">0 selected</span>
                 <button class="btn-bulk-clear" onclick="clearPayslipSelection()">Clear</button>
-                <button class="btn-bulk-print" onclick="bulkPrintSelectedPayslips()">Print All</button>
                 <button class="btn-bulk-archive" onclick="bulkArchiveSelectedPayslips()">Archive</button>
                 <button class="btn-bulk-delete" onclick="bulkDeleteSelectedPayslips()">Delete</button>
               </div>
+              <button class="btn-bulk" onclick="openBulkPayslipActionModal()">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--!Font Awesome Free v7.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path fill="rgb(255, 255, 255)" d="M112 0C85.5 0 64 21.5 64 48l0 160 80 0 0-32c0-53 43-96 96-96l208 0 0-32c0-26.5-21.5-48-48-48L112 0zM240 128c-26.5 0-48 21.5-48 48l0 32 80 0c53 0 96 43 96 96l0 112 160 0c26.5 0 48-21.5 48-48l0-192c0-26.5-21.5-48-48-48l-288 0zm200 64l48 0c13.3 0 24 10.7 24 24l0 48c0 13.3-10.7 24-24 24l-48 0c-13.3 0-24-10.7-24-24l0-48c0-13.3 10.7-24 24-24zM48 256c-26.5 0-48 21.5-48 48l0 10.4 156.6 86.2c1.1 .6 2.2 .9 3.4 .9s2.4-.3 3.4-.9L320 314.4 320 304c0-26.5-21.5-48-48-48L48 256zM320 369.2L186.6 442.6c-8.1 4.5-17.3 6.8-26.6 6.8s-18.4-2.4-26.6-6.8L0 369.2 0 464c0 26.5 21.5 48 48 48l224 0c26.5 0 48-21.5 48-48l0-94.8z"/></svg>
+                Bulk
+              </button>
               <button class="btn-import" onclick="openImportModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
@@ -930,6 +933,63 @@
     <div class="modal-footer" style="justify-content:center;">
       <button class="btn-cancel" onclick="closeModal('bulkDeletePayslipModal')">Cancel</button>
       <button class="btn-confirm-delete" onclick="confirmBulkDeletePayslips()">Delete Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK PRINT/EMAIL PAYSLIP MODAL -->
+<div class="modal-overlay" id="bulkPayslipActionModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Bulk Print/Email</h3>
+    </div>
+    <div class="modal-body">
+      <div class="bulk-payslip-filter-grid">
+        <div class="form-group">
+          <label for="bulkPayslipDepartment">Department</label>
+          <select id="bulkPayslipDepartment">
+            <option value="">All Departments</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bulkPayslipMonth">Month</label>
+          <select id="bulkPayslipMonth">
+            <option value="">All Months</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bulkPayslipYear">Year</label>
+          <select id="bulkPayslipYear">
+            <option value="">All Years</option>
+          </select>
+        </div>
+      </div>
+      <p class="bulk-payslip-note">Use Department only, Month & Year only, or a combined filter to target payslips for bulk actions.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-bulk-print" onclick="bulkPrintFromFilters()">Print</button>
+      <button class="btn-bulk-email" onclick="bulkEmailFromFilters()">Email</button>
+      <button class="btn-back" onclick="closeModal('bulkPayslipActionModal')">Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK EMAIL SUCCESS MODAL -->
+<div class="modal-overlay" id="bulkEmailSuccessModal">
+  <div class="modal modal-delete" style="max-width:420px;">
+    <div class="modal-body">
+      <div class="bulk-email-success-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.25 6.75A2.25 2.25 0 014.5 4.5h15A2.25 2.25 0 0121.75 6.75v1.558l-9.145 5.374a1.25 1.25 0 01-1.27 0L2.25 8.308V6.75z" />
+          <path d="M2.25 10.926l8.457 4.968a3.25 3.25 0 003.286 0l7.757-4.56V17.25A2.25 2.25 0 0119.5 19.5h-15a2.25 2.25 0 01-2.25-2.25v-6.324z" />
+          <circle cx="18" cy="18" r="4" fill="#6ce75f" />
+          <path d="M16.65 18l.85.85 1.85-1.85" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Bulk Email Sent Successfully</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-save" onclick="closeModal('bulkEmailSuccessModal')">Close</button>
     </div>
   </div>
 </div>
