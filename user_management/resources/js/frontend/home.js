@@ -2328,279 +2328,6 @@ async function confirmImport() {
 }
 
 // ===== PRINT PAYSLIP =====
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function toNumber(value) {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const s = String(value).trim();
-  if (!s) return null;
-  const normalized = s.replace(/,/g, '').replace(/[^\d.-]/g, '');
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
-
-function formatMoney(value) {
-  const n = toNumber(value);
-  if (n === null) return '';
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-}
-
-function formatMoneyBlankZero(value) {
-  const n = toNumber(value);
-  if (n === null || n === 0) return '';
-  return formatMoney(n);
-}
-
-function formatLongDate(isoDate) {
-  if (!isoDate) return '';
-  const normalized = String(isoDate).slice(0, 10);
-  const d = new Date(`${normalized}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return normalized;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function formatPayPeriodLabel(isoDate) {
-  if (!isoDate) return '';
-  const normalized = String(isoDate).slice(0, 10);
-  const d = new Date(`${normalized}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return normalized;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-}
-
-function computePayoutDate(payPeriodIso, day) {
-  if (!payPeriodIso) return '';
-  const normalized = String(payPeriodIso).slice(0, 10);
-  const [year, month] = normalized.split('-').map(Number);
-  if (!year || !month || Number.isNaN(year) || Number.isNaN(month)) return '';
-
-  const date = new Date(year, month - 1, 1);
-  date.setDate(day);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function getPayslipTemplateParts() {
-  const templateElement = document.getElementById('payslipPrintTemplate');
-  if (!templateElement) {
-    showToast('Payslip print template is missing in the page.', 'error');
-    return null;
-  }
-
-  const templateHtml = String(templateElement.innerHTML || '').trim();
-  if (!templateHtml) {
-    showToast('Payslip print template is empty.', 'error');
-    return null;
-  }
-
-  const styleMatch = templateHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-  const bodyMatch = templateHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-
-  return {
-    styleCss: styleMatch ? styleMatch[1] : '',
-    bodyTemplate: bodyMatch ? bodyMatch[1] : templateHtml,
-  };
-}
-
-function renderPayslipPrintBody(bodyTemplate, payslipRecord) {
-  let renderedBody = String(bodyTemplate || '');
-  const p = payslipRecord || {};
-
-  const payPeriodIso = String(p.pay_period || p.payPeriod || '').slice(0, 10);
-
-  const pay15Iso = computePayoutDate(payPeriodIso, 15);
-  const pay30Iso = computePayoutDate(payPeriodIso, 30);
-
-  const tokenValues = {
-    employee_id: p.employee_id || '',
-    name: p.name || '',
-    department: p.department || '',
-    designation: p.designation || '',
-    pay_period_label: formatPayPeriodLabel(payPeriodIso),
-
-    monthly_salary: formatMoneyBlankZero(p.monthly_salary),
-    pera: formatMoneyBlankZero(p.pera),
-    gross_amount: formatMoneyBlankZero(p.gross_amount),
-
-    gsis_premium: formatMoneyBlankZero(p.gsis_premium),
-    tax_withheld: formatMoneyBlankZero(p.tax_withheld),
-    philhealth: formatMoneyBlankZero(p.philhealth),
-    hdmf_premium: formatMoneyBlankZero(p.hdmf_premium),
-
-    conso_loan: formatMoneyBlankZero(p.conso_loan),
-    policy_loan: formatMoneyBlankZero(p.policy_loan),
-    hdmf_loan: formatMoneyBlankZero(p.hdmf_loan),
-    opt_pol_ln: formatMoneyBlankZero(p.opt_pol_ln),
-    uoli: formatMoneyBlankZero(p.uoli),
-    gfal_ii: formatMoneyBlankZero(p.gfal_ii),
-    mpl: formatMoneyBlankZero(p.mpl),
-    mpl_lite: formatMoneyBlankZero(p.mpl_lite),
-    comp_ln: formatMoneyBlankZero(p.comp_ln),
-    emer_ln: formatMoneyBlankZero(p.emer_ln),
-    ecash_adv: formatMoneyBlankZero(p.ecash_adv),
-    rel: formatMoneyBlankZero(p.rel),
-    fip_g: formatMoneyBlankZero(p.fip_g),
-    sri_g: formatMoneyBlankZero(p.sri_g),
-    mri_h: formatMoneyBlankZero(p.mri_h),
-    educ_ln: formatMoneyBlankZero(p.educ_ln),
-
-    hdmf_cal: formatMoneyBlankZero(p.hdmf_cal),
-    hdmg_hsng: formatMoneyBlankZero(p.hdmg_hsng),
-    mri_n: formatMoneyBlankZero(p.mri_n),
-    landbank_loan: formatMoneyBlankZero(p.landbank_loan),
-    lraea: formatMoneyBlankZero(p.lraea),
-    gabay: formatMoneyBlankZero(p.gabay),
-    nards: formatMoneyBlankZero(p.nards),
-    lraecc: formatMoneyBlankZero(p.lraecc),
-    nhfmc: formatMoneyBlankZero(p.nhfmc),
-
-    total_deductions: formatMoneyBlankZero(p.total_deductions),
-    net_pay: formatMoneyBlankZero(p.net_pay),
-    '15th_dop': formatLongDate(pay15Iso),
-    '30th_dop': formatLongDate(pay30Iso),
-    pay_15th: formatMoneyBlankZero(p.pay_15th),
-    pay_30th: formatMoneyBlankZero(p.pay_30th),
-  };
-
-  Object.entries(tokenValues).forEach(([key, value]) => {
-    renderedBody = renderedBody.split(`__${key}__`).join(escapeHtml(value));
-  });
-
-  const dynamicFields = [
-    ['hdmf_loan', 'HDMF Loan'],
-    ['mp2', 'MP2'],
-    ['fip_g', 'FIP-G'],
-    ['sri_g', 'SRI-G'],
-    ['fire_h', 'FIRE-H'],
-    ['fire_n', 'FIRE-N'],
-    ['honor_disallow', 'HONOR DISALLOW'],
-    ['ltcp_disallow', 'LTCP DISALLOW'],
-    ['lwop', 'LWOP'],
-    ['mri_h', 'MRI-H'],
-    ['mri_n', 'MRI-N'],
-    ['fine', 'FINE'],
-    ['help', 'HELP'],
-    ['pvb_ln', 'PVB LN'],
-    ['aom_2013_014', 'AOM 2013-014'],
-    ['cna_2009', 'CNA 2009'],
-    ['dorm_fee', 'DORM FEE'],
-  ];
-
-  const dynamicRowsHtml = dynamicFields
-    .map(([field, label]) => {
-      const raw = toNumber(p[field]);
-      if (raw === null || raw <= 0) return '';
-      const value = formatMoney(raw);
-      return `
-      <tr>
-        <td class="c1"></td>
-        <td class="c2" style="padding-left: 50px">${escapeHtml(label)}</td>
-        <td class="c3">${escapeHtml(value)}</td>
-      </tr>`;
-    })
-    .filter(Boolean)
-    .join('');
-
-  return renderedBody.split('<!--__DYNAMIC_FIELDS__-->').join(dynamicRowsHtml);
-}
-
-function openPayslipPrintWindow(renderedBodies, styleCss) {
-  const iframeId = 'payslipPrintIframe';
-  const existing = document.getElementById(iframeId);
-  if (existing && existing.parentNode) {
-    existing.parentNode.removeChild(existing);
-  }
-
-  const iframe = document.createElement('iframe');
-  iframe.id = iframeId;
-  iframe.style.position = 'fixed';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '-9999px';
-  iframe.style.visibility = 'hidden';
-  iframe.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) {
-    showToast('Could not create print frame.', 'error');
-    iframe.remove();
-    return false;
-  }
-
-  const pagesHtml = renderedBodies
-    .map((body, index) => `${body}${index < renderedBodies.length - 1 ? '<div class="bulk-page-break"></div>' : ''}`)
-    .join('');
-
-  const printHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LRA Payslip Print</title>
-  <style>${styleCss || ''}</style>
-  <style>
-    .bulk-page-break {
-      page-break-after: always;
-      break-after: page;
-      height: 0;
-    }
-  </style>
-</head>
-<body>
-${pagesHtml}
-</body>
-</html>`;
-
-  doc.open();
-  doc.write(printHtml);
-  doc.close();
-
-  let printTriggered = false;
-  const triggerPrint = () => {
-    if (printTriggered) return;
-    printTriggered = true;
-
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch (_) {
-      showToast('Print dialog was blocked. Please use Ctrl+P in the payslip window.', 'info');
-    }
-  };
-
-  iframe.addEventListener('load', triggerPrint, { once: true });
-  setTimeout(triggerPrint, 350);
-  setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
-  return true;
-}
-
-function renderPayslipDocumentHtml(renderedBody, styleCss) {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LRA Payslip Preview</title>
-  <style>${styleCss || ''}</style>
-</head>
-<body>
-${renderedBody}
-</body>
-</html>`;
-}
-
 async function openViewPayslipModal(payslipId) {
   const frame = document.getElementById('viewPayslipFrame');
   if (!frame) {
@@ -2690,39 +2417,38 @@ async function printPayslip(payslipId) {
 async function bulkPrintSelectedPayslips() {
   if (selectedPayslipIds.size === 0) return;
 
-  const templateParts = getPayslipTemplateParts();
-  if (!templateParts) return;
-
   const selectedIds = Array.from(selectedPayslipIds);
-  const failedIds = [];
+  const csrfToken = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute('content');
 
-  const records = await Promise.all(
-    selectedIds.map(async (id) => {
-      try {
-        const response = await dataSource.payslips.get(id);
-        return response?.data ?? response ?? {};
-      } catch (_) {
-        failedIds.push(id);
-        return null;
-      }
-    })
-  );
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/api/payslips/bulk-pdf?disposition=inline';
+  form.target = '_blank';
+  form.style.display = 'none';
 
-  const printablePayslips = records.filter(Boolean);
-  if (printablePayslips.length === 0) {
-    showToast('Failed to load selected payslips for printing.', 'error');
-    return;
+  if (csrfToken) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
   }
 
-  const renderedBodies = printablePayslips.map((p) => renderPayslipPrintBody(templateParts.bodyTemplate, p));
-  const opened = openPayslipPrintWindow(renderedBodies, templateParts.styleCss);
+  selectedIds.forEach((id) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payslip_ids[]';
+    input.value = String(id);
+    form.appendChild(input);
+  });
 
-  if (opened) {
-    showToast(`${printablePayslips.length} payslip(s) ready for print.`, 'success');
-    if (failedIds.length > 0) {
-      showToast(`${failedIds.length} selected payslip(s) could not be loaded.`, 'info');
-    }
-  }
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+
+  showToast(`${selectedIds.length} payslip(s) preparing for server-side print.`, 'success');
 }
 
 // ===== SVG ICONS =====

@@ -255,5 +255,11 @@ export const dataSource = {
         body: JSON.stringify({ email }),
       });
     },
+    bulkSendMail(payslipIds, email) {
+      return request(`/payslips/bulk-send-mail`, {
+        method: "POST",
+        body: JSON.stringify({ payslip_ids: payslipIds, email }),
+      });
+    },
   },
 };

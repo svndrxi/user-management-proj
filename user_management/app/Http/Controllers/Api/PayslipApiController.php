@@ -273,6 +273,53 @@ class PayslipApiController extends Controller
             : $pdf->download($fileName);
     }
 
+    public function bulkPdf(Request $request)
+    {
+        $validated = $request->validate([
+            'payslip_ids' => ['required', 'array', 'min:1'],
+            'payslip_ids.*' => ['integer', 'distinct', 'exists:payslips,id'],
+        ]);
+
+        $disposition = strtolower((string) $request->query('disposition', 'inline'));
+        if (! in_array($disposition, ['inline', 'attachment'], true)) {
+            $disposition = 'inline';
+        }
+
+        $requestedIds = collect($validated['payslip_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $payslips = Payslip::query()
+            ->whereIn('id', $requestedIds)
+            ->get()
+            ->keyBy('id');
+
+        $orderedPayslips = $requestedIds
+            ->map(fn (int $id) => $payslips->get($id))
+            ->filter()
+            ->values();
+
+        if ($orderedPayslips->isEmpty()) {
+            return response()->json([
+                'message' => 'No payslips found for the requested IDs.',
+            ], 422);
+        }
+
+        $combinedHtml = $this->buildBulkPayslipHtml($orderedPayslips->all());
+
+        $pdf = Pdf::loadHTML($combinedHtml)
+            ->setPaper('a4', 'portrait')
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('isHtml5ParserEnabled', true);
+
+        $fileName = 'bulk_payslips_' . now()->format('Ymd_His') . '.pdf';
+
+        return $disposition === 'inline'
+            ? $pdf->stream($fileName)
+            : $pdf->download($fileName);
+    }
+
     public function preview(Payslip $payslip)
     {
         $templateHtml = view('payslips.template')->render();
@@ -925,6 +972,81 @@ class PayslipApiController extends Controller
             'email' => ['required', 'email', 'max:255'],
         ]);
 
+        [$pdfContent, $fileName] = $this->buildPayslipPdfAttachment($payslip);
+
+        Mail::to($validated['email'])->send(
+            new PayslipMailer($payslip, $pdfContent, $fileName)
+        );
+
+        ActivityLog::record(
+            'emailed_payslip',
+            'Payslip Management',
+            "Emailed payslip for {$payslip->employee_id} to {$validated['email']}"
+        );
+
+        return response()->json([
+            'message' => 'Payslip email sent successfully.',
+        ]);
+    }
+
+    public function bulkSendMail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'payslip_ids' => ['required', 'array', 'min:1'],
+            'payslip_ids.*' => ['integer', 'distinct', 'exists:payslips,id'],
+        ]);
+
+        $email = (string) $validated['email'];
+        $requestedIds = collect($validated['payslip_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $payslips = Payslip::query()
+            ->whereIn('id', $requestedIds)
+            ->get()
+            ->keyBy('id');
+
+        $sentCount = 0;
+        $failedIds = [];
+
+        foreach ($requestedIds as $payslipId) {
+            $payslip = $payslips->get($payslipId);
+            if (! $payslip) {
+                $failedIds[] = $payslipId;
+                continue;
+            }
+
+            try {
+                [$pdfContent, $fileName] = $this->buildPayslipPdfAttachment($payslip);
+
+                Mail::to($email)->send(
+                    new PayslipMailer($payslip, $pdfContent, $fileName)
+                );
+
+                ActivityLog::record(
+                    'emailed_payslip',
+                    'Payslip Management',
+                    "Emailed payslip for {$payslip->employee_id} to {$email}"
+                );
+
+                $sentCount++;
+            } catch (\Throwable) {
+                $failedIds[] = $payslipId;
+            }
+        }
+
+        return response()->json([
+            'message' => "Bulk payslip email complete. Sent {$sentCount} of {$requestedIds->count()}.",
+            'sent_count' => $sentCount,
+            'failed_count' => count($failedIds),
+            'failed_ids' => $failedIds,
+        ]);
+    }
+
+    private function buildPayslipPdfAttachment(Payslip $payslip): array
+    {
         $templateHtml = view('payslips.template')->render();
         $templateHtml = $this->injectInlineLogoData($templateHtml);
         $renderedHtml = $this->renderPayslipTemplateHtml($templateHtml, $payslip);
@@ -938,18 +1060,44 @@ class PayslipApiController extends Controller
         $employeeName = Str::slug($payslip->name ?: (string) $payslip->id, '_');
         $fileName = "{$payPeriod}_{$employeeName}.pdf";
 
-        Mail::to($validated['email'])->send(
-            new PayslipMailer($payslip, $pdf->output(), $fileName)
-        );
+        return [$pdf->output(), $fileName];
+    }
 
-        ActivityLog::record(
-            'emailed_payslip',
-            'Payslip Management',
-            "Emailed payslip for {$payslip->employee_id} to {$validated['email']}"
-        );
+    private function buildBulkPayslipHtml(array $payslips): string
+    {
+        $templateHtml = view('payslips.template')->render();
+        $templateHtml = $this->injectInlineLogoData($templateHtml);
 
-        return response()->json([
-            'message' => 'Payslip email sent successfully.',
-        ]);
+        $styleCss = '';
+        $bodies = [];
+
+        foreach ($payslips as $index => $payslip) {
+            $renderedHtml = $this->renderPayslipTemplateHtml($templateHtml, $payslip);
+
+            if ($index === 0 && preg_match('/<style[^>]*>([\s\S]*?)<\/style>/i', $renderedHtml, $styleMatch) === 1) {
+                $styleCss = $styleMatch[1];
+            }
+
+            if (preg_match('/<body[^>]*>([\s\S]*?)<\/body>/i', $renderedHtml, $bodyMatch) === 1) {
+                $bodies[] = $bodyMatch[1];
+            } else {
+                $bodies[] = $renderedHtml;
+            }
+        }
+
+        $pagesHtml = '';
+        foreach ($bodies as $index => $bodyHtml) {
+            if ($index > 0) {
+                $pagesHtml .= '<div class="bulk-page-break"></div>';
+            }
+            $pagesHtml .= $bodyHtml;
+        }
+
+        return '<!DOCTYPE html>'
+            . '<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
+            . '<title>LRA Bulk Payslip</title>'
+            . '<style>' . $styleCss . '</style>'
+            . '<style>.bulk-page-break{page-break-after:always;break-after:page;height:0;}</style>'
+            . '</head><body>' . $pagesHtml . '</body></html>';
     }
 }
