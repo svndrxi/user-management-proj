@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use ZipArchive;
 
 class PayslipApiController extends Controller
 {
@@ -265,7 +266,6 @@ class PayslipApiController extends Controller
 
         $payPeriod = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m') : 'unknown';
         $employeeId = $payslip->employee_id ?: (string) $payslip->id;
-        $employeeName = $payslip->name ?: (string) $payslip->id;
         $fileName = "{$employeeId}_{$payPeriod}.pdf";
 
         return $disposition === 'inline'
@@ -318,6 +318,40 @@ class PayslipApiController extends Controller
         return $disposition === 'inline'
             ? $pdf->stream($fileName)
             : $pdf->download($fileName);
+    }
+
+    public function bulkPreview(Request $request)
+    {
+        $validated = $request->validate([
+            'payslip_ids' => ['required', 'array', 'min:1'],
+            'payslip_ids.*' => ['integer', 'distinct', 'exists:payslips,id'],
+        ]);
+
+        $requestedIds = collect($validated['payslip_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $payslips = Payslip::query()
+            ->whereIn('id', $requestedIds)
+            ->get()
+            ->keyBy('id');
+
+        $orderedPayslips = $requestedIds
+            ->map(fn (int $id) => $payslips->get($id))
+            ->filter()
+            ->values();
+
+        if ($orderedPayslips->isEmpty()) {
+            return response()->json([
+                'message' => 'No payslips found for the requested IDs.',
+            ], 422);
+        }
+
+        $combinedHtml = $this->buildBulkPayslipHtml($orderedPayslips->all());
+
+        return response($combinedHtml, 200)
+            ->header('Content-Type', 'text/html');
     }
 
     public function preview(Payslip $payslip)
@@ -1045,6 +1079,80 @@ class PayslipApiController extends Controller
         ]);
     }
 
+    public function bulkZip(Request $request)
+    {
+        $validated = $request->validate([
+            'payslip_ids' => ['required', 'array', 'min:1'],
+            'payslip_ids.*' => ['integer', 'distinct', 'exists:payslips,id'],
+            'department' => ['nullable', 'string', 'max:255'],
+            'year' => ['nullable', 'regex:/^\d{4}$/'],
+            'month' => ['nullable', 'regex:/^(0[1-9]|1[0-2])$/'],
+        ]);
+
+        $requestedIds = collect($validated['payslip_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $payslips = Payslip::query()
+            ->whereIn('id', $requestedIds)
+            ->get()
+            ->keyBy('id');
+
+        $orderedPayslips = $requestedIds
+            ->map(fn (int $id) => $payslips->get($id))
+            ->filter()
+            ->values();
+
+        if ($orderedPayslips->isEmpty()) {
+            return response()->json([
+                'message' => 'No payslips found for the requested IDs.',
+            ], 422);
+        }
+
+        $tmpDir = storage_path('app/tmp');
+        if (! is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0755, true);
+        }
+
+        $zipFolder = $this->buildBulkZipFolderName($validated);
+        $zipFileName = $zipFolder . '.zip';
+        $zipPath = $tmpDir . DIRECTORY_SEPARATOR . $zipFileName;
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            return response()->json([
+                'message' => 'Failed to create ZIP file.',
+            ], 500);
+        }
+
+        $usedNames = [];
+        foreach ($orderedPayslips as $payslip) {
+            [$pdfContent, $fileName] = $this->buildPayslipPdfAttachment($payslip);
+
+            $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $fileName) ?: ('payslip_' . $payslip->id . '.pdf');
+            $baseName = pathinfo($safeName, PATHINFO_FILENAME);
+            $ext = pathinfo($safeName, PATHINFO_EXTENSION);
+            $ext = $ext !== '' ? $ext : 'pdf';
+
+            $uniqueName = $baseName . '.' . $ext;
+            $suffix = 2;
+            while (isset($usedNames[strtolower($uniqueName)])) {
+                $uniqueName = $baseName . '_' . $suffix . '.' . $ext;
+                $suffix++;
+            }
+            $usedNames[strtolower($uniqueName)] = true;
+
+            $zip->addFromString($zipFolder . '/' . $uniqueName, $pdfContent);
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, $zipFileName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
     private function buildPayslipPdfAttachment(Payslip $payslip): array
     {
         $templateHtml = view('payslips.template')->render();
@@ -1057,10 +1165,38 @@ class PayslipApiController extends Controller
             ->setOption('isHtml5ParserEnabled', true);
 
         $payPeriod = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m') : 'unknown';
-        $employeeName = Str::slug($payslip->name ?: (string) $payslip->id, '_');
-        $fileName = "{$payPeriod}_{$employeeName}.pdf";
+        $employeeId = $payslip->employee_id ?: (string) $payslip->id;
+        $safeEmployeeId = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) $employeeId) ?: (string) $payslip->id;
+        $fileName = "{$safeEmployeeId}_{$payPeriod}.pdf";
 
         return [$pdf->output(), $fileName];
+    }
+
+    private function buildBulkZipFolderName(array $validated): string
+    {
+        $parts = ['payslips'];
+
+        $department = trim((string) ($validated['department'] ?? ''));
+        $year = trim((string) ($validated['year'] ?? ''));
+        $month = trim((string) ($validated['month'] ?? ''));
+
+        if ($department !== '') {
+            $safeDepartment = preg_replace('/[^A-Za-z0-9_-]+/', '_', $department) ?: 'department';
+            $safeDepartment = trim((string) $safeDepartment, '_');
+            if ($safeDepartment !== '') {
+                $parts[] = $safeDepartment;
+            }
+        }
+
+        if ($year !== '' && $month !== '') {
+            $parts[] = "{$year}-{$month}";
+        } elseif ($year !== '') {
+            $parts[] = $year;
+        } elseif ($month !== '') {
+            $parts[] = $month;
+        }
+
+        return implode('_', $parts);
     }
 
     private function buildBulkPayslipHtml(array $payslips): string
@@ -1086,18 +1222,21 @@ class PayslipApiController extends Controller
         }
 
         $pagesHtml = '';
+        $totalBodies = count($bodies);
         foreach ($bodies as $index => $bodyHtml) {
-            if ($index > 0) {
-                $pagesHtml .= '<div class="bulk-page-break"></div>';
-            }
-            $pagesHtml .= $bodyHtml;
+            $isLast = $index === ($totalBodies - 1);
+            $pageClass = $isLast ? 'bulk-payslip-page' : 'bulk-payslip-page bulk-payslip-page-break';
+            $pagesHtml .= '<div class="' . $pageClass . '">' . $bodyHtml . '</div>';
         }
 
         return '<!DOCTYPE html>'
             . '<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">'
             . '<title>LRA Bulk Payslip</title>'
             . '<style>' . $styleCss . '</style>'
-            . '<style>.bulk-page-break{page-break-after:always;break-after:page;height:0;}</style>'
+            . '<style>'
+            . '.bulk-payslip-page{width:100%;}'
+            . '.bulk-payslip-page-break{page-break-after:always;break-after:page;}'
+            . '</style>'
             . '</head><body>' . $pagesHtml . '</body></html>';
     }
 }

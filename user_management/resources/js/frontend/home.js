@@ -2393,7 +2393,7 @@ async function printPayslip(payslipId) {
   iframe.style.visibility = 'hidden';
   iframe.setAttribute('aria-hidden', 'true');
 
-  iframe.src = `/api/payslips/${payslipId}/pdf?disposition=inline`;
+  iframe.src = `/api/payslips/${payslipId}/preview`;
   document.body.appendChild(iframe);
 
   let printTriggered = false;
@@ -2524,16 +2524,95 @@ function getBulkPayslipTargetRows() {
   });
 }
 
-function submitBulkPayslipPdf(payslipIds, disposition = 'inline') {
+function submitBulkPayslipPdf(payslipIds, disposition = 'inline', immediatePrint = false) {
   if (!Array.isArray(payslipIds) || payslipIds.length === 0) return;
 
   const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     ?.getAttribute('content');
 
+  const actionUrl = disposition === 'inline'
+    ? '/api/payslips/bulk-preview'
+    : `/api/payslips/bulk-pdf?disposition=${encodeURIComponent(disposition)}`;
+
+  if (disposition === 'inline') {
+    const iframeId = 'bulkPayslipPrintPdfFrame';
+    const existing = document.getElementById(iframeId);
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = iframeId;
+    iframe.name = iframeId;
+    iframe.style.position = 'fixed';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    let printTriggered = false;
+    const triggerPrint = () => {
+      if (printTriggered) return;
+      printTriggered = true;
+
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (_) {
+        showToast('Could not immediately open the print dialog. Please use the PDF viewer to print.', 'info');
+      }
+    };
+
+    if (immediatePrint) {
+      iframe.addEventListener('load', () => {
+        setTimeout(triggerPrint, 120);
+      }, { once: true });
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = actionUrl;
+    form.target = iframeId;
+    form.style.display = 'none';
+
+    if (csrfToken) {
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = '_token';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+    }
+
+    payslipIds.forEach((id) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payslip_ids[]';
+      input.value = String(id);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+
+    if (immediatePrint) {
+      setTimeout(triggerPrint, 900);
+    }
+    setTimeout(() => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 15000);
+
+    return;
+  }
+
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = `/api/payslips/bulk-pdf?disposition=${encodeURIComponent(disposition)}`;
+  form.action = actionUrl;
   form.target = '_blank';
   form.style.display = 'none';
 
@@ -2565,19 +2644,75 @@ function bulkPrintFromFilters() {
     return;
   }
 
-  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline');
+  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline', true);
   showToast(`${targetRows.length} payslip(s) preparing for server-side print.`, 'success');
 }
 
-function bulkDownloadFromFilters() {
+async function bulkDownloadFromFilters() {
   const targetRows = getBulkPayslipTargetRows();
   if (targetRows.length === 0) {
     showToast('No payslips match the selected filter.', 'info');
     return;
   }
 
-  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'attachment');
-  showToast(`${targetRows.length} payslip(s) download started.`, 'success');
+  const selectedDepartment = document.getElementById('bulkPayslipDepartment')?.value || '';
+  const selectedMonth = document.getElementById('bulkPayslipMonth')?.value || '';
+  const selectedYear = document.getElementById('bulkPayslipYear')?.value || '';
+
+  const csrfToken = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute('content');
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/api/payslips/bulk-zip';
+  form.style.display = 'none';
+
+  if (csrfToken) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+  }
+
+  targetRows.forEach((row) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payslip_ids[]';
+    input.value = String(row.id);
+    form.appendChild(input);
+  });
+
+  if (selectedDepartment) {
+    const departmentInput = document.createElement('input');
+    departmentInput.type = 'hidden';
+    departmentInput.name = 'department';
+    departmentInput.value = selectedDepartment;
+    form.appendChild(departmentInput);
+  }
+
+  if (selectedYear) {
+    const yearInput = document.createElement('input');
+    yearInput.type = 'hidden';
+    yearInput.name = 'year';
+    yearInput.value = selectedYear;
+    form.appendChild(yearInput);
+  }
+
+  if (selectedMonth) {
+    const monthInput = document.createElement('input');
+    monthInput.type = 'hidden';
+    monthInput.name = 'month';
+    monthInput.value = selectedMonth;
+    form.appendChild(monthInput);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+
+  showToast(`${targetRows.length} payslip(s) prepared in one ZIP download.`, 'success');
 }
 
 async function bulkEmailFromFilters() {
@@ -2623,7 +2758,7 @@ async function bulkPrintSelectedPayslips() {
   if (selectedPayslipIds.size === 0) return;
 
   const selectedIds = Array.from(selectedPayslipIds);
-  submitBulkPayslipPdf(selectedIds, 'inline');
+  submitBulkPayslipPdf(selectedIds, 'inline', true);
 
   showToast(`${selectedIds.length} payslip(s) preparing for server-side print.`, 'success');
 }
