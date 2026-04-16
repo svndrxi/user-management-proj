@@ -2612,7 +2612,7 @@ async function printPayslip(payslipId) {
   iframe.style.visibility = 'hidden';
   iframe.setAttribute('aria-hidden', 'true');
 
-  iframe.src = `/api/payslips/${payslipId}/pdf?disposition=inline`;
+  iframe.src = `/api/payslips/${payslipId}/preview`;
   document.body.appendChild(iframe);
 
   let printTriggered = false;
@@ -2636,14 +2636,6 @@ async function printPayslip(payslipId) {
   setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
 }
 
-function getEmailByEmployeeId(empId) {
-  const key = String(empId || '').trim().toLowerCase();
-  if (!key) return '';
-
-  const user = usersData.find((u) => String(u.empId || '').trim().toLowerCase() === key);
-  return String(user?.email || '').trim();
-}
-
 async function emailPayslip(payslipId) {
   const payslip = payslipsData.find((p) => p.id === payslipId);
   if (!payslip) {
@@ -2651,15 +2643,13 @@ async function emailPayslip(payslipId) {
     return;
   }
 
-  const recipientEmail = getEmailByEmployeeId(payslip.empId);
-  if (!recipientEmail) {
-    showToast(`No email found for Employee ID ${payslip.empId}.`, 'error');
-    return;
-  }
-
   try {
-    await dataSource.payslips.sendMail(payslip.id, recipientEmail);
-    showToast(`Payslip emailed to ${recipientEmail}.`, 'success');
+    const res = await dataSource.payslips.sendMail(payslip.id);
+    const recipient = String(res?.recipient_email || '').trim();
+    const successMsg = recipient
+      ? `Payslip emailed to ${recipient}.`
+      : 'Payslip emailed successfully.';
+    showToast(successMsg, 'success');
   } catch (e) {
     showToast(e.message || 'Failed to send payslip email.', 'error');
   }
@@ -2743,16 +2733,95 @@ function getBulkPayslipTargetRows() {
   });
 }
 
-function submitBulkPayslipPdf(payslipIds, disposition = 'inline') {
+function submitBulkPayslipPdf(payslipIds, disposition = 'inline', immediatePrint = false) {
   if (!Array.isArray(payslipIds) || payslipIds.length === 0) return;
 
   const csrfToken = document
     .querySelector('meta[name="csrf-token"]')
     ?.getAttribute('content');
 
+  const actionUrl = disposition === 'inline'
+    ? '/api/payslips/bulk-preview'
+    : `/api/payslips/bulk-pdf?disposition=${encodeURIComponent(disposition)}`;
+
+  if (disposition === 'inline') {
+    const iframeId = 'bulkPayslipPrintPdfFrame';
+    const existing = document.getElementById(iframeId);
+    if (existing && existing.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = iframeId;
+    iframe.name = iframeId;
+    iframe.style.position = 'fixed';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.visibility = 'hidden';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    let printTriggered = false;
+    const triggerPrint = () => {
+      if (printTriggered) return;
+      printTriggered = true;
+
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (_) {
+        showToast('Could not immediately open the print dialog. Please use the PDF viewer to print.', 'info');
+      }
+    };
+
+    if (immediatePrint) {
+      iframe.addEventListener('load', () => {
+        setTimeout(triggerPrint, 120);
+      }, { once: true });
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = actionUrl;
+    form.target = iframeId;
+    form.style.display = 'none';
+
+    if (csrfToken) {
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = '_token';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+    }
+
+    payslipIds.forEach((id) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payslip_ids[]';
+      input.value = String(id);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+
+    if (immediatePrint) {
+      setTimeout(triggerPrint, 900);
+    }
+    setTimeout(() => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 15000);
+
+    return;
+  }
+
   const form = document.createElement('form');
   form.method = 'POST';
-  form.action = `/api/payslips/bulk-pdf?disposition=${encodeURIComponent(disposition)}`;
+  form.action = actionUrl;
   form.target = '_blank';
   form.style.display = 'none';
 
@@ -2784,19 +2853,75 @@ function bulkPrintFromFilters() {
     return;
   }
 
-  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline');
+  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline', true);
   showToast(`${targetRows.length} payslip(s) preparing for server-side print.`, 'success');
 }
 
-function bulkDownloadFromFilters() {
+async function bulkDownloadFromFilters() {
   const targetRows = getBulkPayslipTargetRows();
   if (targetRows.length === 0) {
     showToast('No payslips match the selected filter.', 'info');
     return;
   }
 
-  submitBulkPayslipPdf(targetRows.map((row) => row.id), 'attachment');
-  showToast(`${targetRows.length} payslip(s) download started.`, 'success');
+  const selectedDepartment = document.getElementById('bulkPayslipDepartment')?.value || '';
+  const selectedMonth = document.getElementById('bulkPayslipMonth')?.value || '';
+  const selectedYear = document.getElementById('bulkPayslipYear')?.value || '';
+
+  const csrfToken = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute('content');
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/api/payslips/bulk-zip';
+  form.style.display = 'none';
+
+  if (csrfToken) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+  }
+
+  targetRows.forEach((row) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payslip_ids[]';
+    input.value = String(row.id);
+    form.appendChild(input);
+  });
+
+  if (selectedDepartment) {
+    const departmentInput = document.createElement('input');
+    departmentInput.type = 'hidden';
+    departmentInput.name = 'department';
+    departmentInput.value = selectedDepartment;
+    form.appendChild(departmentInput);
+  }
+
+  if (selectedYear) {
+    const yearInput = document.createElement('input');
+    yearInput.type = 'hidden';
+    yearInput.name = 'year';
+    yearInput.value = selectedYear;
+    form.appendChild(yearInput);
+  }
+
+  if (selectedMonth) {
+    const monthInput = document.createElement('input');
+    monthInput.type = 'hidden';
+    monthInput.name = 'month';
+    monthInput.value = selectedMonth;
+    form.appendChild(monthInput);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+
+  showToast(`${targetRows.length} payslip(s) prepared in one ZIP download.`, 'success');
 }
 
 async function bulkEmailFromFilters() {
@@ -2806,20 +2931,10 @@ async function bulkEmailFromFilters() {
     return;
   }
 
-  const queued = [];
-  let skippedNoEmail = 0;
-
-  targetRows.forEach((row) => {
-    const recipientEmail = getEmailByEmployeeId(row.empId);
-    if (!recipientEmail) {
-      skippedNoEmail += 1;
-      return;
-    }
-    queued.push(dataSource.payslips.sendMail(row.id, recipientEmail));
-  });
+  const queued = targetRows.map((row) => dataSource.payslips.sendMail(row.id));
 
   if (queued.length === 0) {
-    showToast('No recipient email found for the filtered payslips.', 'error');
+    showToast('No payslips selected for email.', 'error');
     return;
   }
 
@@ -2833,7 +2948,6 @@ async function bulkEmailFromFilters() {
 
   const summaryParts = [`Sent ${sentCount} email(s)`];
   if (failedCount > 0) summaryParts.push(`${failedCount} failed`);
-  if (skippedNoEmail > 0) summaryParts.push(`${skippedNoEmail} skipped (no email)`);
 
   showToast(summaryParts.join(', ') + '.', failedCount > 0 ? 'info' : 'success');
 }
@@ -2842,7 +2956,7 @@ async function bulkPrintSelectedPayslips() {
   if (selectedPayslipIds.size === 0) return;
 
   const selectedIds = Array.from(selectedPayslipIds);
-  submitBulkPayslipPdf(selectedIds, 'inline');
+  submitBulkPayslipPdf(selectedIds, 'inline', true);
 
   showToast(`${selectedIds.length} payslip(s) preparing for server-side print.`, 'success');
 }

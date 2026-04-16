@@ -249,16 +249,16 @@ export const dataSource = {
         body: form,
       });
     },
-    sendMail(id, email) {
+    sendMail(id) {
       return request(`/payslips/${id}/send-mail`, {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({}),
       });
     },
-    bulkSendMail(payslipIds, email) {
+    bulkSendMail(payslipIds) {
       return request(`/payslips/bulk-send-mail`, {
         method: "POST",
-        body: JSON.stringify({ payslip_ids: payslipIds, email }),
+        body: JSON.stringify({ payslip_ids: payslipIds }),
       });
     },
   },

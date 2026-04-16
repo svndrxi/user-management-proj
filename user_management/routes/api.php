@@ -23,6 +23,8 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
     Route::post('payslips/import', [PayslipApiController::class, 'import'])->name('payslips.import');
     Route::post('payslips/{payslip}/send-mail', [PayslipApiController::class, 'sendMail'])->name('payslips.send-mail');
     Route::post('payslips/bulk-send-mail', [PayslipApiController::class, 'bulkSendMail'])->name('payslips.bulk-send-mail');
+    Route::post('payslips/bulk-zip', [PayslipApiController::class, 'bulkZip'])->name('payslips.bulk-zip');
+    Route::post('payslips/bulk-preview', [PayslipApiController::class, 'bulkPreview'])->name('payslips.bulk-preview');
     Route::post('payslips/bulk-pdf', [PayslipApiController::class, 'bulkPdf'])->name('payslips.bulk-pdf');
     Route::get('payslips/{payslip}/preview', [PayslipApiController::class, 'preview'])->name('payslips.preview');
     Route::get('payslips/{payslip}/pdf', [PayslipApiController::class, 'pdf'])->name('payslips.pdf');
