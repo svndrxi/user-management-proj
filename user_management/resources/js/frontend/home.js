@@ -88,6 +88,34 @@ let selectedPayslipIds = new Set();
 let selectedArchivedPayslipIds = new Set();
 let selectedPayslipViewId = null;
 
+const sampleUserPayslipRows = [
+  { id: 'sample-1', empId: '1234-5678', payPeriod: '2024-11-15' },
+  { id: 'sample-2', empId: '1234-5678', payPeriod: '2023-06-15' },
+  { id: 'sample-3', empId: '1234-5678', payPeriod: '2022-05-15' },
+  { id: 'sample-4', empId: '1234-5678', payPeriod: '2021-04-15' },
+  { id: 'sample-5', empId: '1234-5678', payPeriod: '2020-01-15' },
+  { id: 'sample-6', empId: '1234-5678', payPeriod: '2019-11-15' },
+  { id: 'sample-7', empId: '1234-5678', payPeriod: '2018-06-15' },
+  { id: 'sample-8', empId: '1234-5678', payPeriod: '2017-05-15' },
+  { id: 'sample-9', empId: '1234-5678', payPeriod: '2016-04-15' },
+  { id: 'sample-10', empId: '1234-5678', payPeriod: '2015-01-15' },
+  { id: 'sample-11', empId: '1234-5678', payPeriod: '2014-11-15' },
+  { id: 'sample-12', empId: '1234-5678', payPeriod: '2013-06-15' },
+  { id: 'sample-13', empId: '1234-5678', payPeriod: '2012-05-15' },
+  { id: 'sample-14', empId: '1234-5678', payPeriod: '2011-04-15' },
+  { id: 'sample-15', empId: '1234-5678', payPeriod: '2010-01-15' },
+  { id: 'sample-16', empId: '1234-5678', payPeriod: '2009-01-15' },
+  { id: 'sample-17', empId: '1234-5678', payPeriod: '2024-11-15' },
+  { id: 'sample-18', empId: '1234-5678', payPeriod: '2023-06-15' },
+  { id: 'sample-19', empId: '1234-5678', payPeriod: '2022-05-15' },
+  { id: 'sample-20', empId: '1234-5678', payPeriod: '2021-04-15' },
+  { id: 'sample-21', empId: '1234-5678', payPeriod: '2020-01-15' },
+];
+
+function isUserPayslipView() {
+  return Boolean(document.getElementById('userPayslipList'));
+}
+
 function parseDateTime(value) {
   if (!value) return null;
   const normalized = typeof value === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)
@@ -229,7 +257,20 @@ async function loadAuditFromApi() {
 
 async function loadPayslipsFromApi() {
   const res = await dataSource.payslips.list({ per_page: 200 });
-  payslipsData = (res.data || []).map(normalizePayslip);
+  let normalized = (res.data || []).map(normalizePayslip);
+
+  // The user dashboard should only show payslips belonging to the signed-in employee.
+  if (isUserPayslipView()) {
+    const authEmployeeId = String(
+      document.querySelector('meta[name="auth-employee-id"]')?.getAttribute('content') || ''
+    ).trim().toLowerCase();
+
+    if (authEmployeeId) {
+      normalized = normalized.filter((payslip) => String(payslip.empId || '').trim().toLowerCase() === authEmployeeId);
+    }
+  }
+
+  payslipsData = normalized;
   updateFilterUI();
   renderPayslips();
 }
@@ -306,13 +347,17 @@ function navigate(pageId) {
 
   // Always reset User Management back to the main list when navigating away and back
   if (pageId === 'userManagementPage') {
-    document.getElementById('archiveListPanel').style.display = 'none';
-    document.getElementById('userManagementMain').style.display = 'block';
+    const archiveListPanel = document.getElementById('archiveListPanel');
+    const userManagementMain = document.getElementById('userManagementMain');
+    if (archiveListPanel) archiveListPanel.style.display = 'none';
+    if (userManagementMain) userManagementMain.style.display = 'block';
   }
   // Always reset Payslip Management back to main list when navigating
   if (pageId === 'payslipManagementPage') {
-    document.getElementById('payslipArchivePanel').style.display = 'none';
-    document.getElementById('payslipManagementMain').style.display = 'block';
+    const payslipArchivePanel = document.getElementById('payslipArchivePanel');
+    const payslipManagementMain = document.getElementById('payslipManagementMain');
+    if (payslipArchivePanel) payslipArchivePanel.style.display = 'none';
+    if (payslipManagementMain) payslipManagementMain.style.display = 'block';
   }
 }
 
@@ -1554,16 +1599,31 @@ function formatPayDate(dateStr) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function formatPayPeriodLabel(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+}
+
 function getFilteredPayslips() {
   let data = [...payslipsData];
   const q = (document.getElementById('payslipSearch')?.value || payslipSearchQuery).toLowerCase();
   if (q) {
-    data = data.filter(p =>
-      p.empId.toLowerCase().includes(q) ||
-      (p.name || '').toLowerCase().includes(q) ||
-      (p.department || '').toLowerCase().includes(q) ||
-      (p.designation || '').toLowerCase().includes(q)
-    );
+    if (isUserPayslipView()) {
+      data = data.filter((p) => {
+        const label = formatPayPeriodLabel(p.payPeriod).toLowerCase();
+        const compactPeriod = String(p.payPeriod || '').slice(0, 7).toLowerCase();
+        return label.includes(q) || compactPeriod.includes(q);
+      });
+    } else {
+      data = data.filter(p =>
+        p.empId.toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.department || '').toLowerCase().includes(q) ||
+        (p.designation || '').toLowerCase().includes(q)
+      );
+    }
   }
   
   // Apply department filter
@@ -1585,13 +1645,128 @@ function getFilteredPayslips() {
   return data;
 }
 
+function getFilteredSampleUserPayslips() {
+  // Keep sample preview rows unique by pay period so search results don't duplicate.
+  const uniqueByPayPeriod = new Map();
+  sampleUserPayslipRows.forEach((row) => {
+    const key = String(row.payPeriod || '').slice(0, 10);
+    if (!uniqueByPayPeriod.has(key)) {
+      uniqueByPayPeriod.set(key, row);
+    }
+  });
+
+  let data = Array.from(uniqueByPayPeriod.values());
+  const q = (document.getElementById('payslipSearch')?.value || payslipSearchQuery).toLowerCase();
+
+  if (q) {
+    data = data.filter((p) => {
+      const label = formatPayPeriodLabel(p.payPeriod).toLowerCase();
+      const compactPeriod = String(p.payPeriod || '').slice(0, 7).toLowerCase();
+      return label.includes(q) || compactPeriod.includes(q);
+    });
+  }
+
+  if (payslipMonthFilter || payslipYearFilter) {
+    data = data.filter((p) => {
+      if (!p.payPeriod) return false;
+      const [payYear, payMonth] = String(p.payPeriod).split('-');
+      const monthMatches = !payslipMonthFilter || payMonth === payslipMonthFilter;
+      const yearMatches = !payslipYearFilter || payYear === payslipYearFilter;
+      return monthMatches && yearMatches;
+    });
+  }
+
+  return data;
+}
+
 function renderPayslips() {
   const data = getFilteredPayslips();
-  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  let renderData = data;
+
+  if (isUserPayslipView() && data.length === 0) {
+    renderData = getFilteredSampleUserPayslips();
+  }
+
+  const totalPages = Math.max(1, Math.ceil(renderData.length / ROWS_PER_PAGE));
   if (payslipPage > totalPages) payslipPage = totalPages;
-  const pageData = data.slice((payslipPage - 1) * ROWS_PER_PAGE, payslipPage * ROWS_PER_PAGE);
+  const pageData = renderData.slice((payslipPage - 1) * ROWS_PER_PAGE, payslipPage * ROWS_PER_PAGE);
   const tbody = document.getElementById('payslipTableBody');
-  if (!tbody) return;
+  const userPayslipList = document.getElementById('userPayslipList');
+
+  if (!tbody && !userPayslipList) return;
+
+  if (userPayslipList && !tbody) {
+    userPayslipList.innerHTML = '';
+
+    if (pageData.length === 0) {
+      userPayslipList.innerHTML = '<div class="user-payslip-empty">No payslips found for the selected search/filter.</div>';
+    } else {
+      const showingSample = data.length === 0;
+
+      if (showingSample) {
+        const wrap = document.createElement('div');
+        wrap.className = 'table-container';
+        wrap.innerHTML = `
+          <table class="data-table user-payslip-table">
+            <thead>
+              <tr>
+                <th class="user-col-period">Pay Period</th>
+                <th class="user-col-action">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pageData.map((payslip) => `
+                <tr>
+                  <td class="user-pay-period">${formatPayPeriodLabel(payslip.payPeriod)}</td>
+                  <td class="user-pay-actions">
+                    <div class="action-btns user-action-btns">
+                      <button class="btn-view" onclick="openSamplePayslipModal('${formatPayPeriodLabel(payslip.payPeriod).replace(/'/g, "\\'")}')" title="View Payslip">
+                        ${iconEye}
+                      </button>
+                      <button class="btn-print" title="Print Payslip">
+                        ${iconPrint}
+                      </button>
+                      <button class="btn-download" title="Download Payslip">
+                        ${iconDownload}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+        userPayslipList.appendChild(wrap);
+      } else {
+        pageData.forEach((payslip) => {
+          const item = document.createElement('div');
+          item.className = 'user-payslip-item';
+          item.innerHTML = `
+            <div class="user-payslip-period">${formatPayPeriodLabel(payslip.payPeriod)}</div>
+            <div class="user-payslip-actions">
+              <button class="btn-view" onclick="openViewPayslipModal(${payslip.id})" title="View Payslip">
+                ${iconEye}
+              </button>
+              <button class="btn-print" onclick="printPayslip(${payslip.id})" title="Print Payslip">
+                ${iconPrint}
+              </button>
+              <button class="btn-download" onclick="downloadPayslipPdf(${payslip.id})" title="Download Payslip">
+                ${iconDownload}
+              </button>
+            </div>
+          `;
+          userPayslipList.appendChild(item);
+        });
+      }
+    }
+
+    renderPagination('userPayslipPagination', totalPages, payslipPage, (page) => {
+      payslipPage = page;
+      renderPayslips();
+    });
+    return;
+  }
+
   tbody.innerHTML = '';
 
   pageData.forEach(p => {
@@ -1720,7 +1895,11 @@ function getUniqueDepartments() {
 
 function getAvailableYears() {
   const years = new Set();
-  payslipsData.forEach(p => {
+  const sourceRows = (isUserPayslipView() && payslipsData.length === 0)
+    ? sampleUserPayslipRows
+    : payslipsData;
+
+  sourceRows.forEach(p => {
     if (p.payPeriod) {
       const [year, month] = p.payPeriod.split('-');
       if (year && month) {
@@ -1936,41 +2115,36 @@ function updateFilterUI() {
   const monthBtnLabel = document.getElementById('payslipMonthYearFilterLabel');
   const clearBtn = document.getElementById('payslipClearFiltersBtn');
   
-  if (!deptBtn || !monthBtn || !clearBtn) {
-    console.warn('Filter buttons not found in DOM');
-    return;
-  }
-  
   // Show/hide filter buttons if we have data
   const hasData = payslipsData && payslipsData.length > 0;
+  const userPayslipView = isUserPayslipView();
   
-  if (hasData) {
-    deptBtn.style.display = 'flex';
-    monthBtn.style.display = 'flex';
-  } else {
-    deptBtn.style.display = 'none';
-    monthBtn.style.display = 'none';
-  }
+  if (deptBtn) deptBtn.style.display = hasData ? 'flex' : 'none';
+  if (monthBtn) monthBtn.style.display = (hasData || userPayslipView) ? 'flex' : 'none';
   
   // Update button styles to indicate active filters
-  if (payslipDepartmentFilter) {
-    deptBtn.style.backgroundColor = '#0a5ba8';
-    deptBtn.style.color = '#fff';
-    deptBtn.style.borderColor = '#0a5ba8';
-  } else {
-    deptBtn.style.backgroundColor = '';
-    deptBtn.style.color = '';
-    deptBtn.style.borderColor = '';
+  if (deptBtn) {
+    if (payslipDepartmentFilter) {
+      deptBtn.style.backgroundColor = '#0a5ba8';
+      deptBtn.style.color = '#fff';
+      deptBtn.style.borderColor = '#0a5ba8';
+    } else {
+      deptBtn.style.backgroundColor = '';
+      deptBtn.style.color = '';
+      deptBtn.style.borderColor = '';
+    }
   }
   
-  if (payslipMonthFilter || payslipYearFilter) {
-    monthBtn.style.backgroundColor = '#0a5ba8';
-    monthBtn.style.color = '#fff';
-    monthBtn.style.borderColor = '#0a5ba8';
-  } else {
-    monthBtn.style.backgroundColor = '';
-    monthBtn.style.color = '';
-    monthBtn.style.borderColor = '';
+  if (monthBtn) {
+    if (payslipMonthFilter || payslipYearFilter) {
+      monthBtn.style.backgroundColor = '#0a5ba8';
+      monthBtn.style.color = '#fff';
+      monthBtn.style.borderColor = '#0a5ba8';
+    } else {
+      monthBtn.style.backgroundColor = '';
+      monthBtn.style.color = '';
+      monthBtn.style.borderColor = '';
+    }
   }
 
   if (monthBtnLabel) {
@@ -1994,7 +2168,7 @@ function updateFilterUI() {
   
   // Show clear button only when filters are applied
   const hasFilters = Boolean(payslipDepartmentFilter || payslipMonthFilter || payslipYearFilter);
-  clearBtn.style.display = hasFilters ? 'block' : 'none';
+  if (clearBtn) clearBtn.style.display = hasFilters ? 'block' : 'none';
 }
 
 // ===== EDIT PAYSLIP MODAL =====
@@ -2349,6 +2523,38 @@ async function openViewPayslipModal(payslipId) {
   frame.src = previewUrl;
 }
 
+function openSamplePayslipModal(payPeriodLabel) {
+  const frame = document.getElementById('viewPayslipFrame');
+  if (!frame) {
+    showToast('Payslip preview frame is missing in the page.', 'error');
+    return;
+  }
+
+  selectedPayslipViewId = null;
+
+  frame.srcdoc = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #1f2937; background: #fff; }
+          .sample-card { border: 1px solid #d1d5db; border-radius: 8px; padding: 18px; }
+          h2 { margin: 0 0 10px; font-size: 20px; color: #0a1f6e; }
+          p { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="sample-card">
+          <h2>Payslip (Sample Preview)</h2>
+          <p><strong>Pay Period:</strong> ${String(payPeriodLabel || '')}</p>
+          <p>This is front-end sample data for UI preview.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  openModal('viewPayslipModal');
+}
+
 function printViewedPayslip() {
   if (!selectedPayslipViewId) {
     showToast('No payslip selected for printing.', 'info');
@@ -2365,6 +2571,19 @@ async function downloadViewedPayslipPdf() {
 
   const link = document.createElement('a');
   link.href = `/api/payslips/${selectedPayslipViewId}/pdf?disposition=attachment`;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.download = '';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  showToast('Payslip PDF download started.', 'success');
+}
+
+function downloadPayslipPdf(payslipId) {
+  const link = document.createElement('a');
+  link.href = `/api/payslips/${payslipId}/pdf?disposition=attachment`;
   link.target = '_blank';
   link.rel = 'noopener';
   link.download = '';
@@ -2634,6 +2853,7 @@ const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0
 const iconArchive = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
 const iconMail = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-16 9h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
 const iconPrint = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>`;
+const iconDownload = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>`;
 const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
 
 // ===== CLOSE DROPDOWN ON OUTSIDE CLICK =====
@@ -2694,13 +2914,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  if (document.getElementById('payslipTableBody')) {
+  if (document.getElementById('payslipTableBody') || document.getElementById('userPayslipList')) {
     try {
-      await Promise.all([loadPayslipsFromApi(), loadArchivedPayslipsFromApi()]);
+      await loadPayslipsFromApi();
+      if (document.getElementById('payslipTableBody')) {
+        await loadArchivedPayslipsFromApi();
+      }
     } catch (e) {
       showToast(e.message || 'Failed to load payslips from server.', 'error');
       renderPayslips();
-      renderArchivedPayslips();
+      if (document.getElementById('payslipArchiveTableBody')) {
+        renderArchivedPayslips();
+      }
     }
   }
 
@@ -2804,6 +3029,7 @@ Object.assign(window, {
   generatePassword,
   closeModal,
   openViewPayslipModal,
+  openSamplePayslipModal,
   openPayslipArchiveList,
   closePayslipArchiveList,
   renderPayslips,
@@ -2821,6 +3047,7 @@ Object.assign(window, {
   handleImportDrop,
   confirmImport,
   printPayslip,
+  downloadPayslipPdf,
   emailPayslip,
   printViewedPayslip,
   downloadViewedPayslipPdf,
