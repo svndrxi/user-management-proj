@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ csrf_token() }}" />
   <meta name="app-base-url" content="{{ url('/') }}" />
+  <meta name="auth-employee-id" content="{{ auth()->user()?->employee_id ?? '' }}" />
   <title>LRA User Management System</title>
   @vite(['resources/css/app.css', 'resources/js/frontend/home.js'])
 </head>
@@ -46,11 +47,17 @@
         </button>
       </div>
       <nav class="sidebar-nav">
-        <div class="nav-item active" data-page="profilePage" data-label="Profile" onclick="navigate('profilePage')">
+        <div class="nav-item" data-page="profilePage" data-label="Profile" onclick="navigate('profilePage')">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <span class="nav-label">Profile</span>
+        </div>
+        <div class="nav-item active" data-page="payslipManagementPage" data-label="Payslip Management" onclick="navigate('payslipManagementPage')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span class="nav-label">My Payslips</span>
         </div>
       </nav>
     </aside>
@@ -59,7 +66,7 @@
     <main class="main-content" id="mainContent">
 
       <!-- PROFILE PAGE -->
-      <section id="profilePage" class="page active">
+      <section id="profilePage" class="page">
         <h1 class="page-title">Profile Overview</h1>
         <div class="profile-card">
           <div class="profile-header">
@@ -104,7 +111,63 @@
         </div>
       </section>
 
+      <!-- MY PAYSLIPS PAGE -->
+      <section id="payslipManagementPage" class="page active">
+        <h1 class="page-title">My Payslips</h1>
+
+        <div id="payslipManagementMain" class="user-payslip-shell">
+          <div class="user-payslip-toolbar">
+            <div class="user-search-box">
+              <input
+                type="text"
+                id="payslipSearch"
+                placeholder="Search By Month/Year"
+                oninput="payslipSearchQuery=this.value; payslipPage=1; renderPayslips();"
+              />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+
+            <div class="filter-wrapper user-filter-wrap user-filter-actions">
+              <button class="btn-clear-filters" id="payslipClearFiltersBtn" onclick="clearPayslipFilters()" style="display:none;">
+                Clear
+              </button>
+              <button class="btn-filter" id="payslipMonthYearFilterBtn" onclick="togglePayslipMonthYearFilter()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span id="payslipMonthYearFilterLabel">Month &amp; Year</span>
+              </button>
+              <div id="payslipMonthYearDropdown" class="filter-dropdown"></div>
+            </div>
+          </div>
+
+          <div id="userPayslipList" class="user-payslip-list"></div>
+          <div class="pagination" id="userPayslipPagination"></div>
+        </div>
+      </section>
+
     </main>
+  </div>
+</div>
+
+<!-- VIEW PAYSLIP MODAL -->
+<div class="modal-overlay" id="viewPayslipModal">
+  <div class="modal modal-payslip-view">
+    <div class="modal-header"><h3 class="modal-title">Payslip</h3></div>
+    <div class="modal-body payslip-view-body">
+      <div class="payslip-preview-shell">
+        <iframe id="viewPayslipFrame" class="payslip-preview-iframe" title="Payslip Preview"></iframe>
+      </div>
+    </div>
+    <div class="modal-footer payslip-view-footer">
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-view-payslip-action" onclick="printViewedPayslip()">Print</button>
+        <button class="btn-view-payslip-action" onclick="downloadViewedPayslipPdf()">Download PDF</button>
+      </div>
+      <button class="btn-save-view" onclick="closeModal('viewPayslipModal')">Back</button>
+    </div>
   </div>
 </div>
 
