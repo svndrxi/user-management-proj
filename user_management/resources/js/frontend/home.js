@@ -2417,14 +2417,6 @@ async function printPayslip(payslipId) {
   setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 10000);
 }
 
-function getEmailByEmployeeId(empId) {
-  const key = String(empId || '').trim().toLowerCase();
-  if (!key) return '';
-
-  const user = usersData.find((u) => String(u.empId || '').trim().toLowerCase() === key);
-  return String(user?.email || '').trim();
-}
-
 async function emailPayslip(payslipId) {
   const payslip = payslipsData.find((p) => p.id === payslipId);
   if (!payslip) {
@@ -2432,15 +2424,13 @@ async function emailPayslip(payslipId) {
     return;
   }
 
-  const recipientEmail = getEmailByEmployeeId(payslip.empId);
-  if (!recipientEmail) {
-    showToast(`No email found for Employee ID ${payslip.empId}.`, 'error');
-    return;
-  }
-
   try {
-    await dataSource.payslips.sendMail(payslip.id, recipientEmail);
-    showToast(`Payslip emailed to ${recipientEmail}.`, 'success');
+    const res = await dataSource.payslips.sendMail(payslip.id);
+    const recipient = String(res?.recipient_email || '').trim();
+    const successMsg = recipient
+      ? `Payslip emailed to ${recipient}.`
+      : 'Payslip emailed successfully.';
+    showToast(successMsg, 'success');
   } catch (e) {
     showToast(e.message || 'Failed to send payslip email.', 'error');
   }
@@ -2722,20 +2712,10 @@ async function bulkEmailFromFilters() {
     return;
   }
 
-  const queued = [];
-  let skippedNoEmail = 0;
-
-  targetRows.forEach((row) => {
-    const recipientEmail = getEmailByEmployeeId(row.empId);
-    if (!recipientEmail) {
-      skippedNoEmail += 1;
-      return;
-    }
-    queued.push(dataSource.payslips.sendMail(row.id, recipientEmail));
-  });
+  const queued = targetRows.map((row) => dataSource.payslips.sendMail(row.id));
 
   if (queued.length === 0) {
-    showToast('No recipient email found for the filtered payslips.', 'error');
+    showToast('No payslips selected for email.', 'error');
     return;
   }
 
@@ -2749,7 +2729,6 @@ async function bulkEmailFromFilters() {
 
   const summaryParts = [`Sent ${sentCount} email(s)`];
   if (failedCount > 0) summaryParts.push(`${failedCount} failed`);
-  if (skippedNoEmail > 0) summaryParts.push(`${skippedNoEmail} skipped (no email)`);
 
   showToast(summaryParts.join(', ') + '.', failedCount > 0 ? 'info' : 'success');
 }

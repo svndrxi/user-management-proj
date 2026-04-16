@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\PayslipMailer;
 use App\Models\ActivityLog;
 use App\Models\Payslip;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1002,36 +1003,38 @@ class PayslipApiController extends Controller
 
     public function sendMail(Request $request, Payslip $payslip): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-        ]);
+        $recipientEmail = $this->resolvePayslipRecipientEmail($payslip);
+        if ($recipientEmail === null) {
+            return response()->json([
+                'message' => 'No user email found for this payslip employee.',
+            ], 422);
+        }
 
         [$pdfContent, $fileName] = $this->buildPayslipPdfAttachment($payslip);
 
-        Mail::to($validated['email'])->send(
+        Mail::to($recipientEmail)->send(
             new PayslipMailer($payslip, $pdfContent, $fileName)
         );
 
         ActivityLog::record(
             'emailed_payslip',
             'Payslip Management',
-            "Emailed payslip for {$payslip->employee_id} to {$validated['email']}"
+            "Emailed payslip for {$payslip->employee_id} to {$recipientEmail}"
         );
 
         return response()->json([
             'message' => 'Payslip email sent successfully.',
+            'recipient_email' => $recipientEmail,
         ]);
     }
 
     public function bulkSendMail(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
             'payslip_ids' => ['required', 'array', 'min:1'],
             'payslip_ids.*' => ['integer', 'distinct', 'exists:payslips,id'],
         ]);
 
-        $email = (string) $validated['email'];
         $requestedIds = collect($validated['payslip_ids'])
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -1052,17 +1055,23 @@ class PayslipApiController extends Controller
                 continue;
             }
 
+            $recipientEmail = $this->resolvePayslipRecipientEmail($payslip);
+            if ($recipientEmail === null) {
+                $failedIds[] = $payslipId;
+                continue;
+            }
+
             try {
                 [$pdfContent, $fileName] = $this->buildPayslipPdfAttachment($payslip);
 
-                Mail::to($email)->send(
+                Mail::to($recipientEmail)->send(
                     new PayslipMailer($payslip, $pdfContent, $fileName)
                 );
 
                 ActivityLog::record(
                     'emailed_payslip',
                     'Payslip Management',
-                    "Emailed payslip for {$payslip->employee_id} to {$email}"
+                    "Emailed payslip for {$payslip->employee_id} to {$recipientEmail}"
                 );
 
                 $sentCount++;
@@ -1077,6 +1086,22 @@ class PayslipApiController extends Controller
             'failed_count' => count($failedIds),
             'failed_ids' => $failedIds,
         ]);
+    }
+
+    private function resolvePayslipRecipientEmail(Payslip $payslip): ?string
+    {
+        $employeeId = trim((string) ($payslip->employee_id ?? ''));
+        if ($employeeId === '') {
+            return null;
+        }
+
+        $email = User::query()
+            ->where('employee_id', $employeeId)
+            ->value('email');
+
+        $email = is_string($email) ? trim($email) : '';
+
+        return $email !== '' ? $email : null;
     }
 
     public function bulkZip(Request $request)
