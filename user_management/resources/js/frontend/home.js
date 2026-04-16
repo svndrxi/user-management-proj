@@ -1,5 +1,8 @@
 import { dataSource } from './data-source';
 
+// ===== CONSTANTS =====
+const ROWS_PER_PAGE = 10;
+
 // ===== SAMPLE DATA =====
 const sampleUsers = [
   { id: 1, empId: '1234-5678', firstName: 'Juan', middleName: 'Cale', lastName: 'Dela Cruz', email: 'juan.delacruz@lra.gov.ph', username: 'j.delacruz27', role: 'Admin', status: 'Active', designation: 'IT Officer III', office: 'Information and Communications Technology Division', createdAt: '2026-02-28 13:09', updatedAt: '2026-03-02 24:00' },
@@ -15,56 +18,6 @@ const sampleUsers = [
   { id: 11, empId: '1234-1120', firstName: 'Diego', middleName: 'Morales', lastName: 'Navarro', email: 'diego.navarro@lra.gov.ph', username: 'd.navarro77', role: 'Admin', status: 'Active', designation: 'IT Officer II', office: 'Information and Communications Technology Division', createdAt: '2025-06-20 09:00', updatedAt: '2026-01-30 16:00' },
   { id: 12, empId: '1234-2233', firstName: 'Josephine', middleName: 'Dela', lastName: 'Pena', email: 'josephine.pena@lra.gov.ph', username: 'j.pena55', role: 'User', status: 'Active', designation: 'Clerk II', office: 'Records Management Division', createdAt: '2025-05-10 08:00', updatedAt: '2025-12-01 09:00' },
 ];
-
-// ===== SAMPLE PAYSLIP DATA =====
-/** 
-const samplePayslips = [
-  { id: 1, empId: '1234-5678', firstName: 'Juan', middleName: 'Cale', lastName: 'Dela Cruz', month: 'January', payDate: '2026-01-15' },
-  { id: 2, empId: '1234-8675', firstName: 'Maria', middleName: 'Santos', lastName: 'Reyes', month: 'February', payDate: '2026-02-15' },
-  { id: 3, empId: '1234-7365', firstName: 'Carlos', middleName: 'Lopez', lastName: 'Santos', month: 'March', payDate: '2026-03-15' },
-  { id: 4, empId: '1234-9845', firstName: 'Ana', middleName: 'Cruz', lastName: 'Mendoza', month: 'April', payDate: '2026-04-15' },
-];
-**/
-
-const sampleAuditLogs = [
-  { empId: '1234-5678', name: 'Juan C. Dela Cruz', role: 'Admin', timestamp: '2026-02-10 15:20', description: 'Successful Login' },
-  { empId: '1234-8675', name: 'Maria S. Reyes', role: 'User', timestamp: '2026-02-11 17:20', description: 'Edit Profile' },
-  { empId: '1234-7365', name: 'Carlos L. Santos', role: 'User', timestamp: '2026-02-26 10:10', description: 'Viewed Profile' },
-  { empId: '1234-9845', name: 'Ana C. Mendoza', role: 'User', timestamp: '2026-03-10 11:20', description: 'Successful Logout' },
-  { empId: '1234-4521', name: 'Roberto A. Garcia', role: 'Admin', timestamp: '2026-02-28 14:00', description: 'Added New User' },
-  { empId: '1234-3312', name: 'Liza T. Villanueva', role: 'User', timestamp: '2026-03-01 09:05', description: 'Successful Login' },
-  { empId: '1234-6698', name: 'Mark B. Ramos', role: 'User', timestamp: '2026-03-02 10:30', description: 'Changed Password' },
-  { empId: '1234-7723', name: 'Claire D. Santos', role: 'User', timestamp: '2026-03-03 11:45', description: 'Successful Logout' },
-  { empId: '1234-8801', name: 'Jose E. Torres', role: 'User', timestamp: '2026-03-04 07:50', description: 'Successful Login' },
-  { empId: '1234-9910', name: 'Rachel A. Cruz', role: 'User', timestamp: '2026-03-04 08:15', description: 'Viewed User List' },
-];
-
-// ===== STATE =====
-let usersData = [];
-let archivedUsers = [];   // ← archived users live here
-let auditData = [];
-let currentPage = 1;
-let auditPage = 1;
-let archivePage = 1;
-const ROWS_PER_PAGE = 8;
-let sortField = null;
-let sortOrder = 'asc';
-let filterRole = 'all';
-let searchQuery = '';
-let selectedUser = null;
-let selectedArchivedUser = null;
-let selectedUserIds = new Set();
-let selectedArchivedUserIds = new Set();
-const REQUIRED_EMAIL_DOMAIN = 'lra.gov.ph';
-let addEmailDomainToastShown = false;
-const duplicateToastShown = {
-  addEmpId: false,
-  addUsername: false,
-  addEmail: false,
-  editEmpId: false,
-  editUsername: false,
-  editEmail: false,
-};
 
 // Archive list filter state
 let archiveSortField = null;
@@ -87,30 +40,6 @@ let selectedArchivedPayslip = null;
 let selectedPayslipIds = new Set();
 let selectedArchivedPayslipIds = new Set();
 let selectedPayslipViewId = null;
-
-const sampleUserPayslipRows = [
-  { id: 'sample-1', empId: '1234-5678', payPeriod: '2024-11-15' },
-  { id: 'sample-2', empId: '1234-5678', payPeriod: '2023-06-15' },
-  { id: 'sample-3', empId: '1234-5678', payPeriod: '2022-05-15' },
-  { id: 'sample-4', empId: '1234-5678', payPeriod: '2021-04-15' },
-  { id: 'sample-5', empId: '1234-5678', payPeriod: '2020-01-15' },
-  { id: 'sample-6', empId: '1234-5678', payPeriod: '2019-11-15' },
-  { id: 'sample-7', empId: '1234-5678', payPeriod: '2018-06-15' },
-  { id: 'sample-8', empId: '1234-5678', payPeriod: '2017-05-15' },
-  { id: 'sample-9', empId: '1234-5678', payPeriod: '2016-04-15' },
-  { id: 'sample-10', empId: '1234-5678', payPeriod: '2015-01-15' },
-  { id: 'sample-11', empId: '1234-5678', payPeriod: '2014-11-15' },
-  { id: 'sample-12', empId: '1234-5678', payPeriod: '2013-06-15' },
-  { id: 'sample-13', empId: '1234-5678', payPeriod: '2012-05-15' },
-  { id: 'sample-14', empId: '1234-5678', payPeriod: '2011-04-15' },
-  { id: 'sample-15', empId: '1234-5678', payPeriod: '2010-01-15' },
-  { id: 'sample-16', empId: '1234-5678', payPeriod: '2009-01-15' },
-  { id: 'sample-17', empId: '1234-5678', payPeriod: '2024-11-15' },
-  { id: 'sample-18', empId: '1234-5678', payPeriod: '2023-06-15' },
-  { id: 'sample-19', empId: '1234-5678', payPeriod: '2022-05-15' },
-  { id: 'sample-20', empId: '1234-5678', payPeriod: '2021-04-15' },
-  { id: 'sample-21', empId: '1234-5678', payPeriod: '2020-01-15' },
-];
 
 function isUserPayslipView() {
   return Boolean(document.getElementById('userPayslipList'));
@@ -1645,48 +1574,9 @@ function getFilteredPayslips() {
   return data;
 }
 
-function getFilteredSampleUserPayslips() {
-  // Keep sample preview rows unique by pay period so search results don't duplicate.
-  const uniqueByPayPeriod = new Map();
-  sampleUserPayslipRows.forEach((row) => {
-    const key = String(row.payPeriod || '').slice(0, 10);
-    if (!uniqueByPayPeriod.has(key)) {
-      uniqueByPayPeriod.set(key, row);
-    }
-  });
-
-  let data = Array.from(uniqueByPayPeriod.values());
-  const q = (document.getElementById('payslipSearch')?.value || payslipSearchQuery).toLowerCase();
-
-  if (q) {
-    data = data.filter((p) => {
-      const label = formatPayPeriodLabel(p.payPeriod).toLowerCase();
-      const compactPeriod = String(p.payPeriod || '').slice(0, 7).toLowerCase();
-      return label.includes(q) || compactPeriod.includes(q);
-    });
-  }
-
-  if (payslipMonthFilter || payslipYearFilter) {
-    data = data.filter((p) => {
-      if (!p.payPeriod) return false;
-      const [payYear, payMonth] = String(p.payPeriod).split('-');
-      const monthMatches = !payslipMonthFilter || payMonth === payslipMonthFilter;
-      const yearMatches = !payslipYearFilter || payYear === payslipYearFilter;
-      return monthMatches && yearMatches;
-    });
-  }
-
-  return data;
-}
-
 function renderPayslips() {
   const data = getFilteredPayslips();
-  let renderData = data;
-
-  if (isUserPayslipView() && data.length === 0) {
-    renderData = getFilteredSampleUserPayslips();
-  }
-
+  const renderData = data;
   const totalPages = Math.max(1, Math.ceil(renderData.length / ROWS_PER_PAGE));
   if (payslipPage > totalPages) payslipPage = totalPages;
   const pageData = renderData.slice((payslipPage - 1) * ROWS_PER_PAGE, payslipPage * ROWS_PER_PAGE);
@@ -1701,63 +1591,43 @@ function renderPayslips() {
     if (pageData.length === 0) {
       userPayslipList.innerHTML = '<div class="user-payslip-empty">No payslips found for the selected search/filter.</div>';
     } else {
-      const showingSample = data.length === 0;
-
-      if (showingSample) {
-        const wrap = document.createElement('div');
-        wrap.className = 'table-container';
-        wrap.innerHTML = `
-          <table class="data-table user-payslip-table">
-            <thead>
+      const wrap = document.createElement('div');
+      wrap.className = 'table-container';
+      wrap.innerHTML = `
+        <table class="data-table user-payslip-table">
+          <thead>
+            <tr>
+              <th class="user-col-period">Pay Period</th>
+              <th class="user-col-employee">Employee</th>
+              <th class="user-col-department">Department</th>
+              <th class="user-col-action">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageData.map((payslip) => `
               <tr>
-                <th class="user-col-period">Pay Period</th>
-                <th class="user-col-action">Action</th>
+                <td class="user-pay-period">${formatPayPeriodLabel(payslip.payPeriod)}</td>
+                <td class="user-pay-employee">${payslip.name || payslip.empId || 'N/A'}</td>
+                <td class="user-pay-department">${payslip.department || 'N/A'}</td>
+                <td class="user-pay-actions">
+                  <div class="action-btns user-action-btns">
+                    <button class="btn-view" onclick="openViewPayslipModal(${payslip.id})" title="View Payslip">
+                      ${iconEye}
+                    </button>
+                    <button class="btn-print" onclick="printPayslip(${payslip.id})" title="Print Payslip">
+                      ${iconPrint}
+                    </button>
+                    <button class="btn-download" onclick="downloadPayslipPdf(${payslip.id})" title="Download Payslip">
+                      ${iconDownload}
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              ${pageData.map((payslip) => `
-                <tr>
-                  <td class="user-pay-period">${formatPayPeriodLabel(payslip.payPeriod)}</td>
-                  <td class="user-pay-actions">
-                    <div class="action-btns user-action-btns">
-                      <button class="btn-view" onclick="openSamplePayslipModal('${formatPayPeriodLabel(payslip.payPeriod).replace(/'/g, "\\'")}')" title="View Payslip">
-                        ${iconEye}
-                      </button>
-                      <button class="btn-print" title="Print Payslip">
-                        ${iconPrint}
-                      </button>
-                      <button class="btn-download" title="Download Payslip">
-                        ${iconDownload}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
-        userPayslipList.appendChild(wrap);
-      } else {
-        pageData.forEach((payslip) => {
-          const item = document.createElement('div');
-          item.className = 'user-payslip-item';
-          item.innerHTML = `
-            <div class="user-payslip-period">${formatPayPeriodLabel(payslip.payPeriod)}</div>
-            <div class="user-payslip-actions">
-              <button class="btn-view" onclick="openViewPayslipModal(${payslip.id})" title="View Payslip">
-                ${iconEye}
-              </button>
-              <button class="btn-print" onclick="printPayslip(${payslip.id})" title="Print Payslip">
-                ${iconPrint}
-              </button>
-              <button class="btn-download" onclick="downloadPayslipPdf(${payslip.id})" title="Download Payslip">
-                ${iconDownload}
-              </button>
-            </div>
-          `;
-          userPayslipList.appendChild(item);
-        });
-      }
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      userPayslipList.appendChild(wrap);
     }
 
     renderPagination('userPayslipPagination', totalPages, payslipPage, (page) => {
@@ -1895,11 +1765,7 @@ function getUniqueDepartments() {
 
 function getAvailableYears() {
   const years = new Set();
-  const sourceRows = (isUserPayslipView() && payslipsData.length === 0)
-    ? sampleUserPayslipRows
-    : payslipsData;
-
-  sourceRows.forEach(p => {
+  payslipsData.forEach(p => {
     if (p.payPeriod) {
       const [year, month] = p.payPeriod.split('-');
       if (year && month) {
@@ -2523,38 +2389,6 @@ async function openViewPayslipModal(payslipId) {
   frame.src = previewUrl;
 }
 
-function openSamplePayslipModal(payPeriodLabel) {
-  const frame = document.getElementById('viewPayslipFrame');
-  if (!frame) {
-    showToast('Payslip preview frame is missing in the page.', 'error');
-    return;
-  }
-
-  selectedPayslipViewId = null;
-
-  frame.srcdoc = `
-    <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #1f2937; background: #fff; }
-          .sample-card { border: 1px solid #d1d5db; border-radius: 8px; padding: 18px; }
-          h2 { margin: 0 0 10px; font-size: 20px; color: #0a1f6e; }
-          p { margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="sample-card">
-          <h2>Payslip (Sample Preview)</h2>
-          <p><strong>Pay Period:</strong> ${String(payPeriodLabel || '')}</p>
-          <p>This is front-end sample data for UI preview.</p>
-        </div>
-      </body>
-    </html>
-  `;
-
-  openModal('viewPayslipModal');
-}
-
 function printViewedPayslip() {
   if (!selectedPayslipViewId) {
     showToast('No payslip selected for printing.', 'info');
@@ -3164,7 +2998,6 @@ Object.assign(window, {
   generatePassword,
   closeModal,
   openViewPayslipModal,
-  openSamplePayslipModal,
   openPayslipArchiveList,
   closePayslipArchiveList,
   renderPayslips,
