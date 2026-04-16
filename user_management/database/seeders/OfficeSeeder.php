@@ -16,6 +16,8 @@ class OfficeSeeder extends Seeder
             ['office_code' => 'HQ', 'name' => 'Head Office', 'description' => 'Main administrative office'],
             ['office_code' => 'NORTH', 'name' => 'North Branch', 'description' => 'Northern operations'],
             ['office_code' => 'SOUTH', 'name' => 'South Branch', 'description' => 'Southern operations'],
+            ['office_code' => 'HR', 'name' => 'Human Resources', 'description' => 'Human resources department'],
+            ['office_code' => 'IT', 'name' => 'Information Technology', 'description' => 'IT department'],
         ];
 
         foreach ($offices as $office) {

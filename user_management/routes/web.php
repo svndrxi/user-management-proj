@@ -31,6 +31,10 @@ Route::post('/login', function (Request $request) {
         return redirect()->route('users.index');
     }
 
+    if ($user?->hasRole('Manager')) {
+        return redirect()->route('dashboard.manager');
+    }
+
     return redirect()->route('dashboard.user');
 })->name('frontend.login.submit');
 
@@ -44,6 +48,7 @@ Route::post('/logout', function (Request $request) {
 
 Route::middleware(['auth', 'nocache'])->group(function () {
     Route::view('/dashboard/user', 'dashboard.user')->name('dashboard.user');
+    Route::view('/dashboard/manager', 'dashboard.admin')->name('dashboard.manager')->middleware('role:Manager');
 });
 
 Route::middleware(['auth', 'role:System Admin,Admin', 'nocache'])->group(function () {

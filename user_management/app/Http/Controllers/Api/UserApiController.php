@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Office;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,11 @@ class UserApiController extends Controller
         return $this->roleName($user) === 'user';
     }
 
+    private function isManagerRole(User $user): bool
+    {
+        return $this->roleName($user) === 'manager';
+    }
+
     private function canManageRole(User $actor, string $targetRoleName): bool
     {
         if ($this->isSystemAdmin($actor)) {
@@ -45,10 +51,18 @@ class UserApiController extends Controller
         }
 
         if ($this->isAdmin($actor)) {
-            return $targetRoleName === 'user';
+            return in_array($targetRoleName, ['user', 'manager'], true);
         }
 
         return false;
+    }
+
+    private function isHROfficeId(int $officeId): bool
+    {
+        return Office::query()
+            ->where('id', $officeId)
+            ->where('office_code', 'HR')
+            ->exists();
     }
 
     private function canManageOther(User $actor, User $target): bool
@@ -81,7 +95,7 @@ class UserApiController extends Controller
 
         if ($this->isAdmin($actor) && ! $this->isSystemAdmin($actor)) {
             $query->whereHas('role', function ($q) {
-                $q->where('name', 'User');
+                $q->whereIn('name', ['User', 'Manager']);
             });
         }
 
@@ -128,6 +142,12 @@ class UserApiController extends Controller
 
         if (! $this->canManageRole($actor, $roleName)) {
             return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if ($roleName === 'manager' && ! $this->isHROfficeId((int) $validated['office_id'])) {
+            return response()->json([
+                'message' => 'Only HR office users can be assigned to the Manager role.',
+            ], 422);
         }
 
         $user = User::query()->create([
@@ -207,12 +227,23 @@ class UserApiController extends Controller
             'permission_ids.*' => ['integer', 'exists:permissions,id'],
         ]);
 
-        if (! $this->isSystemAdmin($actor) && (int) $validated['role_id'] !== (int) $user->role_id) {
-            return response()->json(['message' => 'You do not have permission to change roles.'], 403);
+        $targetRole = Role::query()->find((int) $validated['role_id']);
+        $targetRoleName = $this->normalizeRoleName($targetRole?->name);
+        $currentRoleName = $this->roleName($user);
+        $isSelfUpdateWithSameRole = $actor->id === $user->id && $targetRoleName === $currentRoleName;
+
+        if (! $isSelfUpdateWithSameRole && ! $this->canManageRole($actor, $targetRoleName)) {
+            return response()->json(['message' => 'You do not have permission to assign this role.'], 403);
         }
 
-        if ($this->isAdmin($actor) && $actor->id !== $user->id && ! $this->isUserRole($user)) {
-            return response()->json(['message' => 'Admins may only manage users with the User role.'], 403);
+        if ($this->isAdmin($actor) && $actor->id !== $user->id && ! ($this->isUserRole($user) || $this->isManagerRole($user))) {
+            return response()->json(['message' => 'Admins may only manage users with the User or Manager role.'], 403);
+        }
+
+        if ($targetRoleName === 'manager' && ! $this->isHROfficeId((int) $validated['office_id'])) {
+            return response()->json([
+                'message' => 'Only HR office users can be assigned to the Manager role.',
+            ], 422);
         }
 
         $payload = [

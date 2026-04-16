@@ -14,10 +14,11 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         $userRole = Role::query()->where('name', 'User')->first();
+        $managerRole = Role::query()->where('name', 'Manager')->first();
         $adminRole = Role::query()->where('name', 'Admin')->first();
         $systemAdminRole = Role::query()->where('name', 'System Admin')->first();
 
-        if (! $userRole || ! $adminRole || ! $systemAdminRole) {
+        if (! $userRole || ! $managerRole || ! $adminRole || ! $systemAdminRole) {
             return;
         }
 
@@ -27,16 +28,23 @@ class RolePermissionSeeder extends Seeder
             ->all();
 
         $userRole->permissions()->sync($getIds([
-            'view_users',
-            'view_roles',
+            'my_profile',
+            'my_payslip',
+        ]));
+
+        $managerRole->permissions()->sync($getIds([
+            'my_profile',
+            'my_payslip',
+            'manage_payslips',
         ]));
 
         $adminRole->permissions()->sync($getIds([
+            'my_profile',
+            'my_payslip',
             'view_users',
             'manage_users',
             'view_roles',
             'manage_roles',
-            'view_activity_logs',
         ]));
 
         $systemAdminRole->permissions()->sync(

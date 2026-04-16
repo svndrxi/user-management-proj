@@ -14,7 +14,8 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             ['name' => 'User', 'description' => 'Basic account access'],
-            ['name' => 'Admin', 'description' => 'Can manage users and operations'],
+            ['name' => 'Manager', 'description' => 'Manage payslips'],
+            ['name' => 'Admin', 'description' => 'Can manage users and managers'],
             ['name' => 'System Admin', 'description' => 'Full administrative access'],
         ];
 

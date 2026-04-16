@@ -19,12 +19,15 @@ class UserSeeder extends Seeder
         $hq = Office::query()->where('office_code', 'HQ')->first();
         $north = Office::query()->where('office_code', 'NORTH')->first();
         $south = Office::query()->where('office_code', 'SOUTH')->first();
+        $hr = Office::query()->where('office_code', 'HR')->first();
+        $it = Office::query()->where('office_code', 'IT')->first();
 
         $userRole = Role::query()->where('name', 'User')->first();
+        $managerRole = Role::query()->where('name', 'Manager')->first();
         $adminRole = Role::query()->where('name', 'Admin')->first();
         $systemAdminRole = Role::query()->where('name', 'System Admin')->first();
 
-        if (! $hq || ! $north || ! $south || ! $userRole || ! $adminRole || ! $systemAdminRole) {
+        if (! $hq || ! $north || ! $south || ! $hr || ! $it || ! $userRole || ! $managerRole || ! $adminRole || ! $systemAdminRole) {
             return;
         }
 
@@ -36,9 +39,9 @@ class UserSeeder extends Seeder
                 'last_name' => 'Cruz',
                 'designation' => 'System Administrator',
                 'username' => 'alice.cruz',
-                'email' => 'alice@lra.gov.ph',
-                'password' => Hash::make('Admin123!'),
-                'office_id' => $hq->id,
+                'email' => 'sysad@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
+                'office_id' => $it->id,
                 'role_id' => $systemAdminRole->id,
             ],
             [
@@ -48,8 +51,9 @@ class UserSeeder extends Seeder
                 'last_name' => 'Lopez',
                 'designation' => 'Administrative Officer',
                 'username' => 'brian.lopez',
-                'email' => 'brian@lra.gov.ph',
-                'office_id' => $hq->id,
+                'email' => 'admin@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
+                'office_id' => $it->id,
                 'role_id' => $adminRole->id,
             ],
             [
@@ -59,9 +63,10 @@ class UserSeeder extends Seeder
                 'last_name' => 'Reyes',
                 'designation' => 'Records Officer',
                 'username' => 'carla.reyes',
-                'email' => 'carla@lra.gov.ph',
-                'office_id' => $north->id,
-                'role_id' => $userRole->id,
+                'email' => 'manager@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
+                'office_id' => $hr->id,
+                'role_id' => $managerRole->id,
             ],
             [
                 'employee_id' => 'EMP-1004',
@@ -70,7 +75,8 @@ class UserSeeder extends Seeder
                 'last_name' => 'Santos',
                 'designation' => 'Field Staff',
                 'username' => 'daniel.santos',
-                'email' => 'daniel@lra.gov.ph',
+                'email' => 'user@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $south->id,
                 'role_id' => $userRole->id,
             ],
@@ -82,6 +88,7 @@ class UserSeeder extends Seeder
                 'designation' => 'IT Support',
                 'username' => 'ethan.garcia',
                 'email' => 'ethan@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $hq->id,
                 'role_id' => $userRole->id,
             ],
@@ -93,6 +100,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Clerk',
                 'username' => 'fiona.mendoza',
                 'email' => 'fiona@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $north->id,
                 'role_id' => $userRole->id,
             ],
@@ -104,6 +112,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Records Analyst',
                 'username' => 'gavin.flores',
                 'email' => 'gavin@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $south->id,
                 'role_id' => $userRole->id,
             ],
@@ -115,6 +124,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Administrative Assistant',
                 'username' => 'hannah.castillo',
                 'email' => 'hannah@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $hq->id,
                 'role_id' => $userRole->id,
             ],
@@ -126,6 +136,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Field Staff',
                 'username' => 'ivan.navarro',
                 'email' => 'ivan@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $north->id,
                 'role_id' => $userRole->id,
             ],
@@ -137,6 +148,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Data Encoder',
                 'username' => 'jasmine.torres',
                 'email' => 'jasmine@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $south->id,
                 'role_id' => $userRole->id,
             ],
@@ -148,6 +160,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Records Clerk',
                 'username' => 'kevin.delacruz',
                 'email' => 'kevin@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $north->id,
                 'role_id' => $userRole->id,
             ],
@@ -159,6 +172,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Records Officer',
                 'username' => 'lara.domingo',
                 'email' => 'lara@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $hq->id,
                 'role_id' => $userRole->id,
             ],
@@ -170,6 +184,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Client Support',
                 'username' => 'marco.ramos',
                 'email' => 'marco@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $south->id,
                 'role_id' => $userRole->id,
             ],
@@ -181,6 +196,7 @@ class UserSeeder extends Seeder
                 'designation' => 'Administrative Clerk',
                 'username' => 'nina.velasco',
                 'email' => 'nina@lra.gov.ph',
+                'password' => Hash::make('Pass123!'),
                 'office_id' => $north->id,
                 'role_id' => $userRole->id,
             ],
@@ -191,16 +207,8 @@ class UserSeeder extends Seeder
                 ['email' => $userData['email']],
                 $userData + [
                     'email_verified_at' => now(),
-                    'password' => Hash::make('password'),
                 ]
             );
-        }
-
-        $carla = User::query()->where('email', 'carla@lra.gov.ph')->first();
-        $viewLogsPermission = Permission::query()->where('slug', 'view_activity_logs')->first();
-
-        if ($carla && $viewLogsPermission) {
-            $carla->permissions()->syncWithoutDetaching([$viewLogsPermission->id]);
         }
     }
 }

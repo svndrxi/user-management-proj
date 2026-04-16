@@ -19,12 +19,38 @@ use ZipArchive;
 
 class PayslipApiController extends Controller
 {
+    private function normalizeRoleName(?string $name): string
+    {
+        return strtolower(trim($name ?? ''));
+    }
+
+    private function isUserRole(?User $user): bool
+    {
+        return $this->normalizeRoleName($user?->role?->name) === 'user';
+    }
+
+    private function canAccessPayslip(User $actor, Payslip $payslip): bool
+    {
+        if (! $this->isUserRole($actor)) {
+            return true;
+        }
+
+        return trim((string) $actor->employee_id) === trim((string) $payslip->employee_id);
+    }
+
     public function index(Request $request): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
         $perPage = (int) $request->integer('per_page', 15);
 
         $query = Payslip::query()
             ->latest('pay_period');
+
+        if ($actor && $this->isUserRole($actor)) {
+            $query->where('employee_id', trim((string) $actor->employee_id));
+        }
 
         if ($request->boolean('only_archived')) {
             $query->where('is_archived', true);
@@ -127,6 +153,13 @@ class PayslipApiController extends Controller
 
     public function show(Payslip $payslip): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = request()->user();
+
+        if ($actor && ! $this->canAccessPayslip($actor, $payslip)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         return response()->json($payslip);
     }
 
@@ -250,6 +283,13 @@ class PayslipApiController extends Controller
 
     public function pdf(Request $request, Payslip $payslip)
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        if ($actor && ! $this->canAccessPayslip($actor, $payslip)) {
+            abort(403, 'Forbidden.');
+        }
+
         $disposition = strtolower((string) $request->query('disposition', 'attachment'));
         if (! in_array($disposition, ['inline', 'attachment'], true)) {
             $disposition = 'attachment';
@@ -357,6 +397,13 @@ class PayslipApiController extends Controller
 
     public function preview(Payslip $payslip)
     {
+        /** @var User|null $actor */
+        $actor = request()->user();
+
+        if ($actor && ! $this->canAccessPayslip($actor, $payslip)) {
+            abort(403, 'Forbidden.');
+        }
+
         $templateHtml = view('payslips.template')->render();
         $templateHtml = $this->injectInlineLogoData($templateHtml);
 
@@ -1003,6 +1050,13 @@ class PayslipApiController extends Controller
 
     public function sendMail(Request $request, Payslip $payslip): JsonResponse
     {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        if ($actor && ! $this->canAccessPayslip($actor, $payslip)) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $recipientEmail = $this->resolvePayslipRecipientEmail($payslip);
         if ($recipientEmail === null) {
             return response()->json([

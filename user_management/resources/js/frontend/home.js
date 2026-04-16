@@ -2778,19 +2778,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateFormButtons();
   renderLastVisited();
 
+  const currentRole = String(
+    document.querySelector('meta[name="current-role"]')?.getAttribute('content') || ''
+  ).toLowerCase();
+  const isManagerRole = currentRole === 'manager';
+
+  if (isManagerRole) {
+    const managerHiddenPages = ['userManagementPage', 'auditLogsPage'];
+    managerHiddenPages.forEach((pageId) => {
+      const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+      if (nav) nav.style.display = 'none';
+
+      const section = document.getElementById(pageId);
+      if (section) section.style.display = 'none';
+    });
+  }
+
   // Capture sub-panel state BEFORE navigate() clears it
   const savedSubPanel = localStorage.getItem('activeSubPanel');
 
   // Restore last visited page immediately to avoid any flash of wrong page
   const savedPage = localStorage.getItem('activePage');
-  if (savedPage && document.getElementById(savedPage) && document.querySelector(`[data-page="${savedPage}"]`)) {
-    navigate(savedPage);
+  const managerBlockedSavedPage = isManagerRole && ['userManagementPage', 'auditLogsPage'].includes(String(savedPage || ''));
+  const preferredPage = managerBlockedSavedPage ? 'payslipManagementPage' : savedPage;
+
+  if (preferredPage && document.getElementById(preferredPage) && document.querySelector(`[data-page="${preferredPage}"]`)) {
+    navigate(preferredPage);
+  } else if (isManagerRole && document.getElementById('payslipManagementPage') && document.querySelector('[data-page="payslipManagementPage"]')) {
+    navigate('payslipManagementPage');
   } else {
     const activePage = document.querySelector('.page.active')?.id;
     updatePageTitle(activePage || 'profilePage');
   }
 
-  if (document.getElementById('userTableBody')) {
+  if (!isManagerRole && document.getElementById('userTableBody')) {
     try {
       await loadReferenceData();
       await Promise.all([loadUsersFromApi(), loadArchivedUsersFromApi()]);
@@ -2799,7 +2820,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderUsers();
     }
   }
-  if (document.getElementById('auditTableBody')) {
+  if (!isManagerRole && document.getElementById('auditTableBody')) {
     try {
       await loadAuditFromApi();
     } catch (e) {
@@ -2819,7 +2840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Restore archive sub-panel if it was active on last reload
-  if (savedSubPanel === 'userArchiveList') {
+  if (!isManagerRole && savedSubPanel === 'userArchiveList') {
     // Re-save it because navigate() removed it, then open the panel
     localStorage.setItem('activeSubPanel', 'userArchiveList');
     document.getElementById('userManagementMain').style.display = 'none';
