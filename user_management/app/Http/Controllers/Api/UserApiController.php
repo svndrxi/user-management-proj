@@ -359,7 +359,7 @@ class UserApiController extends Controller
 
         $user->delete();
 
-        ActivityLog::record('deleted_user', 'User Management', "Soft-deleted user {$email}");
+        ActivityLog::record('deleted_user', 'User Management', "Deleted user {$email}");
 
         return response()->json([
             'message' => 'User deleted successfully.',

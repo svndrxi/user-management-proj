@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="app-base-url" content="{{ url('/') }}" />
   <title>LRA Payslip Email Template</title>
   <style>
     /* ===== RESET & BASE ===== */
@@ -103,7 +104,7 @@
       border-collapse: collapse;
       background-image:
         linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),
-        url('lra_logo.png');
+        url('{{ asset("resources/images/frontend/lra_logo.png") }}');
       background-repeat: no-repeat;
       background-position: center;
       background-size: 50%;
@@ -187,8 +188,7 @@
               <table class="header-inner" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td class="header-logo-cell">
-                    <!-- REPLACE: swap src with your actual logo filename e.g. src="lra_logo.png" -->
-                    <img src="{{ asset('lra_logo.png') }}" alt="LRA Logo" class="header-logo" />
+                    <img src="{{ asset('resources/images/frontend/lra_logo.png') }}" alt="LRA Logo" class="header-logo" />
                   </td>
                   <td class="header-text-cell">
                     <p class="header-org-name">Land Registration Authority</p>
@@ -202,7 +202,7 @@
           <!-- ===== TITLE BAR ===== -->
           <tr>
             <td class="title-cell">
-              <span class="title-text">PAYSLIP FOR {{ strtoupper($payPeriod) }}</span>
+              <span class="title-text">PAYSLIP FOR {{ strtoupper(optional($payslip->pay_period)->format('F Y') ?? 'UNKNOWN PERIOD') }}</span>
             </td>
           </tr>
 
@@ -214,14 +214,14 @@
                   <td class="body-content-cell">
 
                     <!-- Greeting -->
-                    <p class="greeting">Hi <em>{{ $employeeName }}</em>,</p>
+                    <p class="greeting">Hi <em>{{ $payslip->name }}</em>,</p>
 
                     <!-- Good day -->
                     <p class="body-text">Good day.</p>
 
                     <!-- Para 1 -->
                     <p class="body-text">
-                      Please find attached your payslip for the period of {{ $payPeriod }}. This document
+                      Please find attached your payslip for the period of {{ optional($payslip->pay_period)->format('F Y') ?? 'this period' }}. This document
                       contains a detailed summary of your earnings, deductions, and net pay.
                     </p>
 
