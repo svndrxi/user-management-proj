@@ -34,6 +34,15 @@ let selectedUser = null;
 let selectedArchivedUser = null;
 let selectedUserIds = new Set();
 let selectedArchivedUserIds = new Set();
+let addEmailDomainToastShown = false;
+let duplicateToastShown = {
+  addEmpId: false,
+  addUsername: false,
+  addEmail: false,
+  editEmpId: false,
+  editUsername: false,
+  editEmail: false,
+};
 
 // Archive list filter state
 let archiveSortField = null;
