@@ -1418,4 +1418,8 @@ ul { list-style: none; }
     }
 }
 
-
+hr { 
+    border: none; 
+    border-top: 1px solid #ffffff;
+    opacity: 0.5;
+}
