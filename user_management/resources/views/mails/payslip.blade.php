@@ -1,3 +1,7 @@
+@php
+  $logoSrc = 'https://lra.gov.ph/wp-content/uploads/2022/06/lra-new-logo.png';
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -102,12 +106,6 @@
     .body-watermark-table {
       width: 100%;
       border-collapse: collapse;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),
-        url('{{ asset("resources/images/frontend/lra_logo.png") }}');
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 50%;
     }
 
     .body-content-cell {
@@ -188,7 +186,7 @@
               <table class="header-inner" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td class="header-logo-cell">
-                    <img src="{{ asset('resources/images/frontend/lra_logo.png') }}" alt="LRA Logo" class="header-logo" />
+                    <img src="{{ $logoSrc }}" alt="LRA Logo" class="header-logo" />
                   </td>
                   <td class="header-text-cell">
                     <p class="header-org-name">Land Registration Authority</p>
@@ -208,7 +206,11 @@
 
           <!-- ===== BODY WITH WATERMARK BACKGROUND ===== -->
           <tr>
-            <td class="body-outer-cell">
+            <td
+              class="body-outer-cell"
+              background="{{ $logoSrc }}"
+              style="background-color:#ffffff; background-image:linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)), url('{{ $logoSrc }}'); background-repeat:no-repeat; background-position:center; background-size:50%;"
+            >
               <table class="body-watermark-table" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td class="body-content-cell">
