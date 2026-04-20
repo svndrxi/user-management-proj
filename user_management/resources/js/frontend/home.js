@@ -134,6 +134,15 @@ function monthFromPayDate(dateStr) {
   return d.toLocaleString('en-US', { month: 'long' });
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function normalizePayslip(p) {
   const payPeriod = String(p.pay_period || p.payPeriod || p.payroll_date || p.payrollDate || '').slice(0, 10);
 
@@ -571,12 +580,12 @@ function renderUsers() {
           ${selectedUserIds.has(u.id) ? 'checked' : ''}
         />
       </td>
-      <td>${u.empId}</td>
-      <td>${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}</td>
-      <td>${u.email}</td>
-      <td>${u.username}</td>
-      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${u.role}</span></td>
-      <td><span class="badge badge-status-${u.status.toLowerCase()}">${u.status}</span></td>
+      <td>${escapeHtml(u.empId)}</td>
+      <td>${escapeHtml(`${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}`)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${escapeHtml(u.role)}</span></td>
+      <td><span class="badge badge-status-${String(u.status || '').toLowerCase()}">${escapeHtml(u.status)}</span></td>
       <td>
         <div class="action-btns">
           <button class="btn-view" onclick="openInfoModal(${u.id})" title="View">
@@ -655,11 +664,11 @@ function renderArchive() {
           ${selectedArchivedUserIds.has(u.id) ? 'checked' : ''}
         />
       </td>
-      <td>${u.empId}</td>
-      <td>${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}</td>
-      <td>${u.email}</td>
-      <td>${u.username}</td>
-      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${u.role}</span></td>
+      <td>${escapeHtml(u.empId)}</td>
+      <td>${escapeHtml(`${u.lastName}, ${u.firstName} ${u.middleName ? u.middleName.charAt(0) + '.' : ''}`)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td><span class="badge badge-${roleToBadgeClass(u.role)}">${escapeHtml(u.role)}</span></td>
       <td>
         <div class="action-btns">
           <button class="btn-unarchive" onclick="openUnarchiveModal(${u.id})" title="Unarchive">Unarchive</button>
@@ -748,11 +757,11 @@ function renderAudit() {
   pageData.forEach(a => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${a.empId}</td>
-      <td>${a.name}</td>
-      <td><span class="badge badge-${a.role.toLowerCase()}">${a.role}</span></td>
-      <td>${a.timestamp}</td>
-      <td>${a.description}</td>
+      <td>${escapeHtml(a.empId)}</td>
+      <td>${escapeHtml(a.name)}</td>
+      <td><span class="badge badge-${roleToBadgeClass(a.role)}">${escapeHtml(a.role)}</span></td>
+      <td>${escapeHtml(a.timestamp)}</td>
+      <td>${escapeHtml(a.description)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1647,7 +1656,7 @@ function renderPayslips() {
           <tbody>
             ${pageData.map((payslip) => `
               <tr>
-                <td class="user-pay-period">${formatPayPeriodLabel(payslip.payPeriod)}</td>
+                <td class="user-pay-period">${escapeHtml(formatPayPeriodLabel(payslip.payPeriod))}</td>
                 <td class="user-pay-actions">
                   <div class="action-btns user-action-btns">
                     <button class="btn-view" onclick="openViewPayslipModal(${payslip.id})" title="View Payslip">
@@ -1689,11 +1698,11 @@ function renderPayslips() {
           ${selectedPayslipIds.has(p.id) ? 'checked' : ''}
         />
       </td>
-      <td>${p.empId}</td>
-      <td>${p.name || ''}</td>
-      <td>${p.department || ''}</td>
-      <td>${p.designation || ''}</td>
-      <td>${formatPayDate(p.payPeriod)}</td>
+      <td>${escapeHtml(p.empId)}</td>
+      <td>${escapeHtml(p.name || '')}</td>
+      <td>${escapeHtml(p.department || '')}</td>
+      <td>${escapeHtml(p.designation || '')}</td>
+      <td>${escapeHtml(formatPayDate(p.payPeriod))}</td>
       <td>
         <div class="action-btns">
           <button class="btn-view" onclick="openViewPayslipModal(${p.id})" title="View Payslip">
@@ -1765,11 +1774,11 @@ function renderArchivedPayslips() {
           ${selectedArchivedPayslipIds.has(p.id) ? 'checked' : ''}
         />
       </td>
-      <td>${p.empId}</td>
-      <td>${p.name || ''}</td>
-      <td>${p.department || ''}</td>
-      <td>${p.designation || ''}</td>
-      <td>${formatPayDate(p.payPeriod)}</td>
+      <td>${escapeHtml(p.empId)}</td>
+      <td>${escapeHtml(p.name || '')}</td>
+      <td>${escapeHtml(p.department || '')}</td>
+      <td>${escapeHtml(p.designation || '')}</td>
+      <td>${escapeHtml(formatPayDate(p.payPeriod))}</td>
       <td>
         <div class="action-btns">
           <button class="btn-unarchive" onclick="openUnarchivePayslipModal(${p.id})">Unarchive</button>

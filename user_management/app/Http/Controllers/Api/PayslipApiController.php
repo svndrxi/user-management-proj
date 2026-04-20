@@ -665,7 +665,7 @@ class PayslipApiController extends Controller
                     $created++;
                 } catch (\Throwable $e) {
                     $failed++;
-                    $errors[] = ['row' => $rowIndex, 'error' => $e->getMessage()];
+                    $errors[] = ['row' => $rowIndex, 'error' => 'Unexpected error while processing this row.'];
                 }
             }
 
