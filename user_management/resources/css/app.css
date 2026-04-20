@@ -1415,6 +1415,10 @@ ul { list-style: none; }
         margin-left: 0;
         width: 100%;
     }
+
+    .nav-divider hr{
+        border: 1px solid red;
+    }
 }
 
 

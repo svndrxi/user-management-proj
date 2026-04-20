@@ -2852,10 +2852,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('meta[name="current-role"]')?.getAttribute('content') || ''
   ).toLowerCase();
   const isManagerRole = currentRole === 'manager';
+  const isAdminRole = currentRole === 'admin' || currentRole === 'system admin';
 
   if (isManagerRole) {
     const managerHiddenPages = ['userManagementPage', 'auditLogsPage'];
     managerHiddenPages.forEach((pageId) => {
+      const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+      if (nav) nav.style.display = 'none';
+
+      const section = document.getElementById(pageId);
+      if (section) section.style.display = 'none';
+    });
+  }
+
+  if (isAdminRole) {
+    const adminHiddenPages = ['payslipManagementPage'];
+    adminHiddenPages.forEach((pageId) => {
       const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
       if (nav) nav.style.display = 'none';
 
@@ -2870,7 +2882,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Restore last visited page immediately to avoid any flash of wrong page
   const savedPage = localStorage.getItem('activePage');
   const managerBlockedSavedPage = isManagerRole && ['userManagementPage', 'auditLogsPage'].includes(String(savedPage || ''));
-  const preferredPage = managerBlockedSavedPage ? 'payslipManagementPage' : savedPage;
+  const adminBlockedSavedPage = isAdminRole && ['payslipManagementPage'].includes(String(savedPage || ''));
+  let preferredPage;
+
+  if (managerBlockedSavedPage) {
+    preferredPage = 'payslipManagementPage';
+  } else if (adminBlockedSavedPage) {
+    preferredPage = 'profilePage';
+  } else {
+    preferredPage = savedPage;
+  }
 
   if (preferredPage && document.getElementById(preferredPage) && document.querySelector(`[data-page="${preferredPage}"]`)) {
     navigate(preferredPage);
@@ -2899,7 +2920,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  if (document.getElementById('payslipTableBody') || document.getElementById('userPayslipList')) {
+  if (!isAdminRole && (document.getElementById('payslipTableBody') || document.getElementById('userPayslipList'))) {
     try {
       await loadPayslipsFromApi();
       if (document.getElementById('payslipTableBody')) {

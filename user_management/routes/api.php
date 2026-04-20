@@ -25,14 +25,14 @@ Route::middleware(['auth:sanctum', 'role:System Admin,Admin'])->name('api.')->gr
     Route::apiResource('activity-logs', ActivityLogApiController::class)->only(['index', 'show', 'destroy']);
 });
 
-Route::middleware(['auth:sanctum', 'role:System Admin,Admin,Manager,User'])->name('api.')->group(function () {
+Route::middleware(['auth:sanctum', 'role:Manager,User'])->name('api.')->group(function () {
     Route::apiResource('payslips', PayslipApiController::class)->only(['index', 'show']);
     Route::post('payslips/{payslip}/send-mail', [PayslipApiController::class, 'sendMail'])->name('payslips.send-mail');
     Route::get('payslips/{payslip}/preview', [PayslipApiController::class, 'preview'])->name('payslips.preview');
     Route::get('payslips/{payslip}/pdf', [PayslipApiController::class, 'pdf'])->name('payslips.pdf');
 });
 
-Route::middleware(['auth:sanctum', 'role:System Admin,Admin,Manager'])->name('api.')->group(function () {
+Route::middleware(['auth:sanctum', 'role:Manager'])->name('api.')->group(function () {
     Route::post('payslips/import', [PayslipApiController::class, 'import'])->name('payslips.import');
     Route::post('payslips/bulk-send-mail', [PayslipApiController::class, 'bulkSendMail'])->name('payslips.bulk-send-mail');
     Route::post('payslips/bulk-zip', [PayslipApiController::class, 'bulkZip'])->name('payslips.bulk-zip');
