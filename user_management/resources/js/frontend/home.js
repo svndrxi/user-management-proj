@@ -19,6 +19,22 @@ const sampleUsers = [
   { id: 12, empId: '1234-2233', firstName: 'Josephine', middleName: 'Dela', lastName: 'Pena', email: 'josephine.pena@lra.gov.ph', username: 'j.pena55', role: 'User', status: 'Active', designation: 'Clerk II', office: 'Records Management Division', createdAt: '2025-05-10 08:00', updatedAt: '2025-12-01 09:00' },
 ];
 
+// ===== USER & AUDIT STATE =====
+let usersData = [];
+let archivedUsers = [];
+let auditData = [];
+let currentPage = 1;
+let archivePage = 1;
+let auditPage = 1;
+let searchQuery = '';
+let filterRole = 'all';
+let sortField = null;
+let sortOrder = 'asc';
+let selectedUser = null;
+let selectedArchivedUser = null;
+let selectedUserIds = new Set();
+let selectedArchivedUserIds = new Set();
+
 // Archive list filter state
 let archiveSortField = null;
 let archiveSortOrder = 'asc';
@@ -2688,7 +2704,7 @@ function bulkPrintFromFilters() {
   }
 
   submitBulkPayslipPdf(targetRows.map((row) => row.id), 'inline', true);
-  showToast(`${targetRows.length} payslip(s) preparing for server-side print.`, 'success');
+  showToast(`Generating ${targetRows.length} payslip(s) for printing.`, 'success');
 }
 
 async function bulkDownloadFromFilters() {
