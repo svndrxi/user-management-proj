@@ -58,7 +58,15 @@ let selectedArchivedPayslipIds = new Set();
 let selectedPayslipViewId = null;
 
 function isUserPayslipView() {
-  return Boolean(document.getElementById('userPayslipList'));
+  const userPayslipList = document.getElementById('userPayslipList');
+  if (!userPayslipList) return false;
+
+  const myPayslipPage = document.getElementById('myPayslipPage');
+  if (myPayslipPage) {
+    return myPayslipPage.classList.contains('active');
+  }
+
+  return true;
 }
 
 function parseDateTime(value) {
@@ -201,19 +209,12 @@ async function loadAuditFromApi() {
 }
 
 async function loadPayslipsFromApi() {
-  const res = await dataSource.payslips.list({ per_page: 200 });
-  let normalized = (res.data || []).map(normalizePayslip);
-
-  // The user dashboard should only show payslips belonging to the signed-in employee.
-  if (isUserPayslipView()) {
-    const authEmployeeId = String(
-      document.querySelector('meta[name="auth-employee-id"]')?.getAttribute('content') || ''
-    ).trim().toLowerCase();
-
-    if (authEmployeeId) {
-      normalized = normalized.filter((payslip) => String(payslip.empId || '').trim().toLowerCase() === authEmployeeId);
-    }
-  }
+  const isUserView = isUserPayslipView();
+  const authEmployeeId = isUserView ? String(document.querySelector('meta[name="auth-employee-id"]')?.getAttribute('content') || '').trim() : '';
+  const params = { per_page: 200 };
+  if (authEmployeeId) params.employee_id = authEmployeeId;
+  const res = await dataSource.payslips.list(params);
+  const normalized = (res.data || []).map(normalizePayslip);
 
   payslipsData = normalized;
   updateFilterUI();
@@ -261,6 +262,7 @@ function getPageTitle(pageId) {
   const titles = {
     profilePage: 'LRA Profile',
     userManagementPage: 'LRA Users',
+    myPayslipPage: 'LRA My Payslips',
     payslipManagementPage: 'LRA Payslips',
     auditLogsPage: 'LRA Activity Logs',
   };
@@ -1551,9 +1553,34 @@ function formatPayPeriodLabel(dateStr) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
 }
 
+function getPayslipSearchInput() {
+  if (isUserPayslipView()) {
+    return document.getElementById('myPayslipSearch') || document.getElementById('payslipSearch');
+  }
+  return document.getElementById('payslipSearch');
+}
+
+function getPayslipMonthFilterRefs() {
+  if (isUserPayslipView()) {
+    return {
+      button: document.getElementById('myPayslipMonthYearFilterBtn') || document.getElementById('payslipMonthYearFilterBtn'),
+      label: document.getElementById('myPayslipMonthYearFilterLabel') || document.getElementById('payslipMonthYearFilterLabel'),
+      dropdown: document.getElementById('myPayslipMonthYearDropdown') || document.getElementById('payslipMonthYearDropdown'),
+      clearButton: document.getElementById('myPayslipClearFiltersBtn') || document.getElementById('payslipClearFiltersBtn'),
+    };
+  }
+
+  return {
+    button: document.getElementById('payslipMonthYearFilterBtn'),
+    label: document.getElementById('payslipMonthYearFilterLabel'),
+    dropdown: document.getElementById('payslipMonthYearDropdown'),
+    clearButton: document.getElementById('payslipClearFiltersBtn'),
+  };
+}
+
 function getFilteredPayslips() {
   let data = [...payslipsData];
-  const q = (document.getElementById('payslipSearch')?.value || payslipSearchQuery).toLowerCase();
+  const q = (getPayslipSearchInput()?.value || payslipSearchQuery).toLowerCase();
   if (q) {
     if (isUserPayslipView()) {
       data = data.filter((p) => {
@@ -1601,7 +1628,7 @@ function renderPayslips() {
 
   if (!tbody && !userPayslipList) return;
 
-  if (userPayslipList && !tbody) {
+  if (userPayslipList && (isUserPayslipView() || !tbody)) {
     userPayslipList.innerHTML = '';
 
     if (pageData.length === 0) {
@@ -1614,8 +1641,6 @@ function renderPayslips() {
           <thead>
             <tr>
               <th class="user-col-period">Pay Period</th>
-              <th class="user-col-employee">Employee</th>
-              <th class="user-col-department">Department</th>
               <th class="user-col-action">Action</th>
             </tr>
           </thead>
@@ -1623,8 +1648,6 @@ function renderPayslips() {
             ${pageData.map((payslip) => `
               <tr>
                 <td class="user-pay-period">${formatPayPeriodLabel(payslip.payPeriod)}</td>
-                <td class="user-pay-employee">${payslip.name || payslip.empId || 'N/A'}</td>
-                <td class="user-pay-department">${payslip.department || 'N/A'}</td>
                 <td class="user-pay-actions">
                   <div class="action-btns user-action-btns">
                     <button class="btn-view" onclick="openViewPayslipModal(${payslip.id})" title="View Payslip">
@@ -1832,7 +1855,7 @@ function togglePayslipDepartmentFilter() {
 }
 
 function togglePayslipMonthYearFilter() {
-  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  const { dropdown } = getPayslipMonthFilterRefs();
   if (!dropdown) {
     console.warn('payslipMonthYearDropdown not found');
     return;
@@ -1853,7 +1876,7 @@ function closeOtherDropdown(keep) {
     if (deptDropdown) deptDropdown.style.display = 'none';
   }
   if (keep !== 'month') {
-    const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+    const { dropdown: monthDropdown } = getPayslipMonthFilterRefs();
     if (monthDropdown) monthDropdown.style.display = 'none';
   }
 }
@@ -1903,7 +1926,7 @@ function populateDepartmentFilter() {
 }
 
 function populateMonthYearFilter() {
-  const dropdown = document.getElementById('payslipMonthYearDropdown');
+  const { dropdown } = getPayslipMonthFilterRefs();
   if (!dropdown) return;
 
   const months = getAllMonths();
@@ -1985,7 +2008,7 @@ function clearPayslipFilters() {
   
   // Close dropdowns
   const deptDropdown = document.getElementById('payslipDepartmentDropdown');
-  const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  const { dropdown: monthDropdown } = getPayslipMonthFilterRefs();
   if (deptDropdown) deptDropdown.style.display = 'none';
   if (monthDropdown) monthDropdown.style.display = 'none';
 }
@@ -1993,9 +2016,7 @@ function clearPayslipFilters() {
 function updateFilterUI() {
   const deptBtn = document.getElementById('payslipDepartmentFilterBtn');
   const deptBtnLabel = document.getElementById('payslipDepartmentFilterLabel');
-  const monthBtn = document.getElementById('payslipMonthYearFilterBtn');
-  const monthBtnLabel = document.getElementById('payslipMonthYearFilterLabel');
-  const clearBtn = document.getElementById('payslipClearFiltersBtn');
+  const { button: monthBtn, label: monthBtnLabel, clearButton: clearBtn } = getPayslipMonthFilterRefs();
   
   // Show/hide filter buttons if we have data
   const hasData = payslipsData && payslipsData.length > 0;
@@ -2831,15 +2852,25 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const deptBtn = document.getElementById('payslipDepartmentFilterBtn');
   const deptDropdown = document.getElementById('payslipDepartmentDropdown');
-  const monthBtn = document.getElementById('payslipMonthYearFilterBtn');
-  const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  const monthRefs = [
+    {
+      button: document.getElementById('payslipMonthYearFilterBtn'),
+      dropdown: document.getElementById('payslipMonthYearDropdown'),
+    },
+    {
+      button: document.getElementById('myPayslipMonthYearFilterBtn'),
+      dropdown: document.getElementById('myPayslipMonthYearDropdown'),
+    },
+  ];
   
   if (deptBtn && deptDropdown && !deptBtn.contains(e.target) && !deptDropdown.contains(e.target)) {
     deptDropdown.style.display = 'none';
   }
-  if (monthBtn && monthDropdown && !monthBtn.contains(e.target) && !monthDropdown.contains(e.target)) {
-    monthDropdown.style.display = 'none';
-  }
+  monthRefs.forEach(({ button, dropdown }) => {
+    if (button && dropdown && !button.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
 });
 
 // ===== INIT =====
@@ -2888,7 +2919,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (managerBlockedSavedPage) {
     preferredPage = 'payslipManagementPage';
   } else if (adminBlockedSavedPage) {
-    preferredPage = 'profilePage';
+    preferredPage = 'myPayslipPage';
   } else {
     preferredPage = savedPage;
   }
@@ -2897,6 +2928,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     navigate(preferredPage);
   } else if (isManagerRole && document.getElementById('payslipManagementPage') && document.querySelector('[data-page="payslipManagementPage"]')) {
     navigate('payslipManagementPage');
+  } else if (document.getElementById('myPayslipPage') && document.querySelector('[data-page="myPayslipPage"]')) {
+    navigate('myPayslipPage');
   } else {
     const activePage = document.querySelector('.page.active')?.id;
     updatePageTitle(activePage || 'profilePage');
@@ -2920,16 +2953,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  if (!isAdminRole && (document.getElementById('payslipTableBody') || document.getElementById('userPayslipList'))) {
+  if (document.getElementById('payslipTableBody') || document.getElementById('userPayslipList')) {
     try {
       await loadPayslipsFromApi();
-      if (document.getElementById('payslipTableBody')) {
+      if (isManagerRole && document.getElementById('payslipTableBody')) {
         await loadArchivedPayslipsFromApi();
       }
     } catch (e) {
       showToast(e.message || 'Failed to load payslips from server.', 'error');
       renderPayslips();
-      if (document.getElementById('payslipArchiveTableBody')) {
+      if (isManagerRole && document.getElementById('payslipArchiveTableBody')) {
         renderArchivedPayslips();
       }
     }
@@ -2943,7 +2976,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('archiveListPanel').style.display = 'block';
     renderArchive();
     updateBulkActionUI();
-  } else if (savedSubPanel === 'payslipArchiveList') {
+  } else if (isManagerRole && savedSubPanel === 'payslipArchiveList') {
     localStorage.setItem('activeSubPanel', 'payslipArchiveList');
     document.getElementById('payslipManagementMain').style.display = 'none';
     document.getElementById('payslipArchivePanel').style.display = 'block';
@@ -2970,13 +3003,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Initialize dropdowns
-  const deptFilterBtn = document.getElementById('payslipDepartmentFilterBtn');
-  const monthFilterBtn = document.getElementById('payslipMonthYearFilterBtn');
   const deptDropdown = document.getElementById('payslipDepartmentDropdown');
   const monthDropdown = document.getElementById('payslipMonthYearDropdown');
+  const myMonthDropdown = document.getElementById('myPayslipMonthYearDropdown');
   
   if (deptDropdown) deptDropdown.style.display = 'none';
   if (monthDropdown) monthDropdown.style.display = 'none';
+  if (myMonthDropdown) myMonthDropdown.style.display = 'none';
   
   if (deptDropdown) {
     deptDropdown.addEventListener('click', (e) => {
@@ -2985,6 +3018,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (monthDropdown) {
     monthDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+  if (myMonthDropdown) {
+    myMonthDropdown.addEventListener('click', (e) => {
       e.stopPropagation();
     });
   }

@@ -6,6 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}" />
   <meta name="app-base-url" content="{{ url('/') }}" />
   <meta name="current-role" content="{{ strtolower(auth()->user()?->role?->name ?? '') }}" />
+  <meta name="auth-employee-id" content="{{ auth()->user()?->employee_id ?? '' }}" />
   <title> LRA User Management System</title>
   @vite(['resources/css/app.css', 'resources/js/frontend/home.js'])
 </head>
@@ -70,6 +71,13 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
           </svg>
           <span class="nav-label">Activity Logs</span>
+        </div>
+        <hr/>
+        <div class="nav-item" data-page="myPayslipPage" data-label="My Payslips" onclick="navigate('myPayslipPage')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span class="nav-label">My Payslips</span>
         </div>
       </nav>
     </aside>
@@ -283,6 +291,43 @@
           <div class="pagination" id="archivePagination"></div>
         </div>
 
+      </section>
+
+      <!-- MY PAYSLIPS PAGE -->
+      <section id="myPayslipPage" class="page">
+        <h1 class="page-title">My Payslips</h1>
+
+        <div id="myPayslipMain" class="user-payslip-shell">
+          <div class="user-payslip-toolbar">
+            <div class="user-search-box">
+              <input
+                type="text"
+                id="myPayslipSearch"
+                placeholder="Search By Month/Year"
+                oninput="payslipSearchQuery=this.value; payslipPage=1; renderPayslips();"
+              />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+
+            <div class="filter-wrapper user-filter-wrap user-filter-actions">
+              <button class="btn-clear-filters" id="myPayslipClearFiltersBtn" onclick="clearPayslipFilters()" style="display:none;">
+                Clear
+              </button>
+              <button class="btn-filter" id="myPayslipMonthYearFilterBtn" onclick="togglePayslipMonthYearFilter()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span id="myPayslipMonthYearFilterLabel">Month &amp; Year</span>
+              </button>
+              <div id="myPayslipMonthYearDropdown" class="filter-dropdown"></div>
+            </div>
+          </div>
+
+          <div id="userPayslipList" class="user-payslip-list"></div>
+          <div class="pagination" id="userPayslipPagination"></div>
+        </div>
       </section>
 
       <!-- PAYSLIP MANAGEMENT PAGE -->

@@ -24,14 +24,14 @@ class PayslipApiController extends Controller
         return strtolower(trim($name ?? ''));
     }
 
-    private function isUserRole(?User $user): bool
+    private function isManagerRole(?User $user): bool
     {
-        return $this->normalizeRoleName($user?->role?->name) === 'user';
+        return $this->normalizeRoleName($user?->role?->name) === 'manager';
     }
 
     private function canAccessPayslip(User $actor, Payslip $payslip): bool
     {
-        if (! $this->isUserRole($actor)) {
+        if ($this->isManagerRole($actor)) {
             return true;
         }
 
@@ -48,7 +48,7 @@ class PayslipApiController extends Controller
         $query = Payslip::query()
             ->latest('pay_period');
 
-        if ($actor && $this->isUserRole($actor)) {
+        if ($actor && ! $this->isManagerRole($actor)) {
             $query->where('employee_id', trim((string) $actor->employee_id));
         }
 
