@@ -73,9 +73,7 @@
           <span class="nav-label">Activity Logs</span>
         </div>
 
-        <br>
-           <hr>
-        <br>
+          <div class="sidebar-section-divider" aria-hidden="true"></div>
 
         <div class="nav-item" data-page="myPayslipPage" data-label="My Payslips" onclick="navigate('myPayslipPage')">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

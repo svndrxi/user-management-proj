@@ -96,6 +96,12 @@ ul { list-style: none; }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; }
 
+.sidebar-section-divider {
+    margin: 14px 6px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    opacity: 0.9;
+}
+
 .nav-item {
     display: flex;
     align-items: center;
