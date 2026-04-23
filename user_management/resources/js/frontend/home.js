@@ -348,6 +348,9 @@ function renderOffices() {
   tbody.innerHTML = '';
 
   pageData.forEach((office) => {
+    const hasUsers = Number(office.usersCount || 0) > 0;
+    const deleteTitle = hasUsers ? 'Cannot delete office with assigned users' : 'Delete Office';
+    const deleteDisabled = hasUsers ? 'disabled aria-disabled="true"' : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(office.officeCode)}</td>
@@ -359,7 +362,7 @@ function renderOffices() {
           <button class="btn-edit" onclick="openEditOfficeModal(${office.id})" title="Edit Office">
             ${iconEdit}
           </button>
-          <button class="btn-delete" onclick="openDeleteOfficeModal(${office.id})" title="Delete Office">
+          <button class="btn-delete" onclick="openDeleteOfficeModal(${office.id})" title="${deleteTitle}" ${deleteDisabled}>
             ${iconTrash}
           </button>
         </div>
@@ -439,6 +442,11 @@ async function saveOfficeModal() {
 function openDeleteOfficeModal(officeId) {
   const office = officeManagementData.find((item) => item.id === officeId);
   if (!office) return;
+
+  if (Number(office.usersCount || 0) > 0) {
+    showToast('Cannot delete an office with assigned users.', 'error');
+    return;
+  }
 
   selectedOffice = office;
   document.getElementById('deleteOfficeName').textContent = office.name;

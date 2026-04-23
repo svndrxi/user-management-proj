@@ -391,6 +391,12 @@ ul { list-style: none; }
 .btn-edit:hover { background: #fef3c7; transform: scale(1.1); }
 .btn-delete { color: var(--red); }
 .btn-delete:hover { background: #fee2e2; transform: scale(1.1); }
+.btn-delete:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    background: transparent;
+}
 .btn-view svg, .btn-edit svg, .btn-delete svg { width: 18px; height: 18px; }
 
 /* PAGINATION */

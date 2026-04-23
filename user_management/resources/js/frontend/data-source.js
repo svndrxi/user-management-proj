@@ -180,27 +180,6 @@ export const dataSource = {
     },
   },
 
-  permissions: {
-    list(params = {}) {
-      return request(`/permissions${toQuery(params)}`);
-    },
-    get(id) {
-      return request(`/permissions/${id}`);
-    },
-    create(payload) {
-      return request("/permissions", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-    },
-    update(id, payload) {
-      return request(`/permissions/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-    },
-  },
-
   activityLogs: {
     list(params = {}) {
       return request(`/activity-logs${toQuery(params)}`);
