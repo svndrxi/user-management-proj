@@ -50,6 +50,10 @@ let archiveSortOrder = 'asc';
 let archiveFilterRole = 'all';
 let rolesData = [];
 let officesData = [];
+let officeManagementData = [];
+let officeManagementPage = 1;
+let officeSearchQuery = '';
+let selectedOffice = null;
 
 // ===== PAYSLIP STATE =====
 let payslipsData = [];
@@ -280,6 +284,7 @@ function getPageTitle(pageId) {
   const titles = {
     profilePage: 'LRA Profile',
     userManagementPage: 'LRA Users',
+    officeManagementPage: 'LRA Offices',
     myPayslipPage: 'LRA My Payslips',
     payslipManagementPage: 'LRA Payslips',
     auditLogsPage: 'LRA Activity Logs',
@@ -298,6 +303,161 @@ function roleToBadgeClass(role) {
     .trim()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
+}
+
+function normalizeOffice(office) {
+  return {
+    id: office.id,
+    officeCode: office.office_code || '',
+    name: office.name || '',
+    description: office.description || '',
+    usersCount: Number(office.users_count || 0),
+  };
+}
+
+async function loadOfficesManagementFromApi() {
+  const res = await dataSource.offices.list({ per_page: 200 });
+  officeManagementData = (res.data || []).map(normalizeOffice);
+  renderOffices();
+}
+
+function getFilteredOffices() {
+  let data = [...officeManagementData];
+  const q = String(officeSearchQuery || '').toLowerCase().trim();
+
+  if (q) {
+    data = data.filter((office) =>
+      String(office.officeCode || '').toLowerCase().includes(q) ||
+      String(office.name || '').toLowerCase().includes(q) ||
+      String(office.description || '').toLowerCase().includes(q)
+    );
+  }
+
+  return data;
+}
+
+function renderOffices() {
+  const tbody = document.getElementById('officeTableBody');
+  if (!tbody) return;
+
+  const data = getFilteredOffices();
+  const totalPages = Math.max(1, Math.ceil(data.length / ROWS_PER_PAGE));
+  if (officeManagementPage > totalPages) officeManagementPage = totalPages;
+
+  const pageData = data.slice((officeManagementPage - 1) * ROWS_PER_PAGE, officeManagementPage * ROWS_PER_PAGE);
+  tbody.innerHTML = '';
+
+  pageData.forEach((office) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(office.officeCode)}</td>
+      <td>${escapeHtml(office.name)}</td>
+      <td>${escapeHtml(office.description || '-')}</td>
+      <td>${escapeHtml(String(office.usersCount))}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-edit" onclick="openEditOfficeModal(${office.id})" title="Edit Office">
+            ${iconEdit}
+          </button>
+          <button class="btn-delete" onclick="openDeleteOfficeModal(${office.id})" title="Delete Office">
+            ${iconTrash}
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const emptyCount = ROWS_PER_PAGE - pageData.length;
+  for (let i = 0; i < emptyCount; i++) {
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = '<td colspan="5"></td>';
+    tbody.appendChild(tr);
+  }
+
+  renderPagination('officePagination', totalPages, officeManagementPage, (p) => {
+    officeManagementPage = p;
+    renderOffices();
+  });
+}
+
+function openAddOfficeModal() {
+  selectedOffice = null;
+  document.getElementById('officeModalTitle').textContent = 'Add Office';
+  document.getElementById('officeCodeInput').value = '';
+  document.getElementById('officeNameInput').value = '';
+  document.getElementById('officeDescriptionInput').value = '';
+  openModal('officeModal');
+}
+
+function openEditOfficeModal(officeId) {
+  const office = officeManagementData.find((item) => item.id === officeId);
+  if (!office) return;
+
+  selectedOffice = office;
+  document.getElementById('officeModalTitle').textContent = 'Edit Office';
+  document.getElementById('officeCodeInput').value = office.officeCode;
+  document.getElementById('officeNameInput').value = office.name;
+  document.getElementById('officeDescriptionInput').value = office.description || '';
+  openModal('officeModal');
+}
+
+async function saveOfficeModal() {
+  const officeCode = document.getElementById('officeCodeInput')?.value?.trim() || '';
+  const name = document.getElementById('officeNameInput')?.value?.trim() || '';
+  const description = document.getElementById('officeDescriptionInput')?.value?.trim() || '';
+
+  if (!officeCode || !name) {
+    showToast('Office code and name are required.', 'error');
+    return;
+  }
+
+  try {
+    const payload = {
+      office_code: officeCode,
+      name,
+      description: description || null,
+    };
+
+    if (selectedOffice?.id) {
+      await dataSource.offices.update(selectedOffice.id, payload);
+      showToast('Office updated successfully.', 'success');
+    } else {
+      await dataSource.offices.create(payload);
+      showToast('Office added successfully.', 'success');
+    }
+
+    closeModal('officeModal');
+    selectedOffice = null;
+    await Promise.all([loadOfficesManagementFromApi(), loadReferenceData()]);
+  } catch (e) {
+    showToast(e.message || 'Failed to save office.', 'error');
+  }
+}
+
+function openDeleteOfficeModal(officeId) {
+  const office = officeManagementData.find((item) => item.id === officeId);
+  if (!office) return;
+
+  selectedOffice = office;
+  document.getElementById('deleteOfficeName').textContent = office.name;
+  openModal('deleteOfficeModal');
+}
+
+async function confirmDeleteOffice() {
+  if (!selectedOffice?.id) return;
+
+  closeModal('deleteOfficeModal');
+
+  try {
+    await dataSource.offices.remove(selectedOffice.id);
+    selectedOffice = null;
+    await Promise.all([loadOfficesManagementFromApi(), loadReferenceData()]);
+    showToast('Office deleted successfully.', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to delete office.', 'error');
+  }
 }
 
 // ===== NAVIGATION =====
@@ -2904,7 +3064,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAdminRole = currentRole === 'admin' || currentRole === 'system admin';
 
   if (isManagerRole) {
-    const managerHiddenPages = ['userManagementPage', 'auditLogsPage'];
+    const managerHiddenPages = ['userManagementPage', 'auditLogsPage', 'officeManagementPage'];
     managerHiddenPages.forEach((pageId) => {
       const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
       if (nav) nav.style.display = 'none';
@@ -2930,7 +3090,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Restore last visited page immediately to avoid any flash of wrong page
   const savedPage = localStorage.getItem('activePage');
-  const managerBlockedSavedPage = isManagerRole && ['userManagementPage', 'auditLogsPage'].includes(String(savedPage || ''));
+  const managerBlockedSavedPage = isManagerRole && ['userManagementPage', 'auditLogsPage', 'officeManagementPage'].includes(String(savedPage || ''));
   const adminBlockedSavedPage = isAdminRole && ['payslipManagementPage'].includes(String(savedPage || ''));
   let preferredPage;
 
@@ -2968,6 +3128,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       showToast(e.message || 'Failed to load activity logs from server.', 'error');
       renderAudit();
+    }
+  }
+
+  if (!isManagerRole && document.getElementById('officeTableBody')) {
+    try {
+      await loadOfficesManagementFromApi();
+    } catch (e) {
+      showToast(e.message || 'Failed to load offices from server.', 'error');
+      renderOffices();
     }
   }
 
@@ -3076,6 +3245,12 @@ Object.assign(window, {
   setAuditFilter,
   setArchiveSortField,
   setArchiveFilterRole,
+  renderOffices,
+  openAddOfficeModal,
+  openEditOfficeModal,
+  saveOfficeModal,
+  openDeleteOfficeModal,
+  confirmDeleteOffice,
   openAddModal,
   openEditModal,
   openInfoModal,

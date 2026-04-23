@@ -60,6 +60,12 @@
           </svg>
           <span class="nav-label">Users</span>
         </div>
+        <div class="nav-item" data-page="officeManagementPage" data-label="Office Management" onclick="navigate('officeManagementPage')">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1"/>
+          </svg>
+          <span class="nav-label">Offices</span>
+        </div>
         <div class="nav-item" data-page="payslipManagementPage" data-label="Payslip Management" onclick="navigate('payslipManagementPage')">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -295,6 +301,45 @@
 
       </section>
 
+      <!-- OFFICE MANAGEMENT PAGE -->
+      <section id="officeManagementPage" class="page">
+        <h1 class="page-title">Office / Department / Division</h1>
+        <div id="officeManagementMain">
+          <div class="toolbar">
+            <div class="search-box">
+              <input type="text" id="officeSearch" placeholder="Enter Office Code or Name..."
+                oninput="officeSearchQuery=this.value; officeManagementPage=1; renderOffices();" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+            <div class="toolbar-right" style="display:flex;gap:10px;align-items:center;">
+              <button class="btn-new-user" onclick="openAddOfficeModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+                Add Office
+              </button>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Office Code</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Users</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="officeTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="officePagination"></div>
+        </div>
+      </section>
+
       <!-- MY PAYSLIPS PAGE -->
       <section id="myPayslipPage" class="page">
         <h1 class="page-title">My Payslips</h1>
@@ -515,6 +560,52 @@
       </section>
 
     </main>
+  </div>
+</div>
+
+<!-- ADD/EDIT OFFICE MODAL -->
+<div class="modal-overlay" id="officeModal">
+  <div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="officeModalTitle">Add Office</h3></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Office Code</label>
+          <input type="text" id="officeCodeInput" placeholder="Office Code" />
+        </div>
+        <div class="form-group full-width">
+          <label>Office / Department / Division Name</label>
+          <input type="text" id="officeNameInput" placeholder="Office Name" />
+        </div>
+        <div class="form-group full-width">
+          <label>Description</label>
+          <input type="text" id="officeDescriptionInput" placeholder="Description (Optional)" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('officeModal')">Cancel</button>
+      <button class="btn-save" onclick="saveOfficeModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE OFFICE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteOfficeModal">
+  <div class="modal modal-delete" style="max-width:400px;">
+    <div class="modal-body">
+      <div class="delete-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </div>
+      <p class="delete-msg">Delete Office</p>
+      <p class="delete-sub">Are you sure you want to delete <strong id="deleteOfficeName"></strong>? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;">
+      <button class="btn-cancel" onclick="closeModal('deleteOfficeModal')">Cancel</button>
+      <button class="btn-confirm-delete" onclick="confirmDeleteOffice()">Delete</button>
+    </div>
   </div>
 </div>
 
