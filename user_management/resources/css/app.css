@@ -498,6 +498,12 @@ ul { list-style: none; }
     color: var(--text-dark);
 }
 
+.required-indicator {
+    color: var(--red);
+    font-weight: 700;
+    margin-left: 4px;
+}
+
 .audit-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .date-input-wrap { position: relative; display: flex; align-items: center; }
 .date-input-wrap input[type="date"] { padding: 8px 14px; border: 1.5px solid var(--gray-light); border-radius: var(--radius); background: var(--white); font-size: 13.5px; color: var(--text-body); transition: border-color var(--transition); }

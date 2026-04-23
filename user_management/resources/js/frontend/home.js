@@ -2,6 +2,7 @@ import { dataSource } from './data-source';
 
 // ===== CONSTANTS =====
 const ROWS_PER_PAGE = 10;
+const REQUIRED_EMAIL_DOMAIN = 'lra.gov.ph';
 
 // ===== SAMPLE DATA =====
 const sampleUsers = [
@@ -1137,7 +1138,12 @@ async function saveAddUser() {
   document.getElementById('addLastName').value = ln;
 
   const addRoleId = Number(document.getElementById('addRole').value);
-  const addOfficeId = Number(document.getElementById('addOffice').value);
+  const addOfficeEl = document.getElementById('addOffice');
+  let addOfficeId = Number(addOfficeEl?.value);
+  if (!addOfficeId && addOfficeEl?.value) {
+    const matchedOffice = officesData.find((office) => office.name === addOfficeEl.value);
+    addOfficeId = Number(matchedOffice?.id || 0);
+  }
 
   if (!addRoleId || !addOfficeId) {
     showToast('Please select valid role and office.', 'error');
@@ -1154,6 +1160,7 @@ async function saveAddUser() {
       username: document.getElementById('addUsername').value.trim(),
       email: document.getElementById('addEmail').value.trim(),
       password: document.getElementById('addPassword').value.trim(),
+      password_confirmation: document.getElementById('addPasswordConfirmation').value.trim(),
       office_id: addOfficeId,
       role_id: addRoleId,
       is_active: true,
@@ -1189,7 +1196,12 @@ async function saveEditUser() {
     document.getElementById('editLastName').value = editLastName;
 
     const editRoleId = Number(document.getElementById('editRole').value);
-    const editOfficeId = Number(document.getElementById('editOffice').value);
+    const editOfficeEl = document.getElementById('editOffice');
+    let editOfficeId = Number(editOfficeEl?.value);
+    if (!editOfficeId && editOfficeEl?.value) {
+      const matchedOffice = officesData.find((office) => office.name === editOfficeEl.value);
+      editOfficeId = Number(matchedOffice?.id || 0);
+    }
     if (!editRoleId || !editOfficeId) {
       showToast('Please select valid role and office.', 'error');
       return;
@@ -1311,7 +1323,7 @@ function validateEmailField(fieldId) {
 
   const validFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   if (!validFormat) {
-    setFieldError(fieldId, 'Invalid email format. Use a valid address like name@lra.gov.ph.');
+    setFieldError(fieldId, 'Enter a valid email address like name@lra.gov.ph.');
     return false;
   }
 
@@ -1327,7 +1339,7 @@ function validateEmailField(fieldId) {
   }
 
   if (!lower.endsWith(`@${REQUIRED_EMAIL_DOMAIN}`)) {
-    setFieldError(fieldId, `Email should use @${REQUIRED_EMAIL_DOMAIN} only.`);
+    setFieldError(fieldId, `Use an official LRA email ending with @${REQUIRED_EMAIL_DOMAIN}.`);
     return false;
   }
 
@@ -1383,6 +1395,28 @@ function notifyDuplicateField(fieldId, userField, label, excludeUserId = null) {
   }
 }
 
+function validatePasswordConfirmation(fieldId = 'addPasswordConfirmation') {
+  const passwordEl = document.getElementById('addPassword');
+  const confirmEl = document.getElementById(fieldId);
+  if (!passwordEl || !confirmEl) return true;
+
+  const password = passwordEl.value.trim();
+  const confirmation = confirmEl.value.trim();
+
+  if (!confirmation) {
+    setFieldError(fieldId, 'Confirm Password is required.');
+    return false;
+  }
+
+  if (password !== confirmation) {
+    setFieldError(fieldId, 'Passwords do not match. Please re-enter the confirmation password.');
+    return false;
+  }
+
+  setFieldError(fieldId, '');
+  return true;
+}
+
 function validateAddForm(showErrors = true) {
   const checks = [
     ['addFirstName', 'First Name'],
@@ -1390,6 +1424,7 @@ function validateAddForm(showErrors = true) {
     ['addEmpId', 'Employee ID'],
     ['addUsername', 'Username'],
     ['addPassword', 'Password'],
+    ['addPasswordConfirmation', 'Confirm Password'],
     ['addDesignation', 'Designation / Position'],
     ['addOffice', 'Office / Department / Division'],
     ['addRole', 'Account Role'],
@@ -1418,6 +1453,10 @@ function validateAddForm(showErrors = true) {
   if (!uniqueEmailOk && !showErrors) setFieldError('addEmail', '');
   valid = uniqueEmailOk && valid;
 
+  const passwordMatchOk = validatePasswordConfirmation();
+  if (!passwordMatchOk && !showErrors) setFieldError('addPasswordConfirmation', '');
+  valid = passwordMatchOk && valid;
+
   return valid;
 }
 
@@ -1428,6 +1467,7 @@ function validateAddField(fieldId, showErrors = true) {
     addEmpId: 'Employee ID',
     addUsername: 'Username',
     addPassword: 'Password',
+    addPasswordConfirmation: 'Confirm Password',
     addDesignation: 'Designation / Position',
     addOffice: 'Office / Department / Division',
     addRole: 'Account Role',
@@ -1457,6 +1497,10 @@ function validateAddField(fieldId, showErrors = true) {
     const uniqueUsernameOk = validateUniqueField('addUsername', 'username', 'Username');
     if (!uniqueUsernameOk && !showErrors) setFieldError('addUsername', '');
     return uniqueUsernameOk;
+  }
+
+  if (fieldId === 'addPasswordConfirmation') {
+    return validatePasswordConfirmation('addPasswordConfirmation');
   }
 
   {
@@ -1586,7 +1630,7 @@ function bindValidationEvents() {
 
   const addFields = [
     'addFirstName', 'addLastName', 'addEmail', 'addEmpId',
-    'addUsername', 'addPassword', 'addDesignation', 'addOffice', 'addRole',
+    'addUsername', 'addPassword', 'addPasswordConfirmation', 'addDesignation', 'addOffice', 'addRole',
   ];
   const editFields = [
     'editFirstName', 'editLastName', 'editEmail', 'editUsername',
@@ -1599,8 +1643,9 @@ function bindValidationEvents() {
 
     const eventType = el.tagName === 'SELECT' ? 'change' : 'input';
     el.addEventListener(eventType, () => {
-      if (fieldId.startsWith('add')) validateAddField(fieldId, true);
-      else validateEditField(fieldId, true);
+      const isEmailField = fieldId === 'addEmail' || fieldId === 'editEmail';
+      if (fieldId.startsWith('add')) validateAddField(fieldId, !isEmailField);
+      else validateEditField(fieldId, !isEmailField);
       if (fieldId === 'addEmail') notifyWrongAddEmailDomain();
       if (fieldId === 'addEmpId') notifyDuplicateField('addEmpId', 'empId', 'Employee ID');
       if (fieldId === 'addUsername') notifyDuplicateField('addUsername', 'username', 'Username');

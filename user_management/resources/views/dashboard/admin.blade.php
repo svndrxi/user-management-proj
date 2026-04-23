@@ -617,7 +617,7 @@
       <form id="addUserForm" onsubmit="return false;">
         <div class="form-grid">
           <div class="form-group">
-            <label>First Name</label>
+            <label>First Name <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="text" id="addFirstName" placeholder="First Name" />
           </div>
           <div class="form-group">
@@ -625,34 +625,38 @@
             <input type="text" id="addMiddleName" placeholder="Middle Name" />
           </div>
           <div class="form-group">
-            <label>Last Name</label>
+            <label>Last Name <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="text" id="addLastName" placeholder="Last Name" />
           </div>
           <div class="form-group">
-            <label>Email</label>
+            <label>Email <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="email" id="addEmail" placeholder="Email" />
           </div>
           <div class="form-group full-width">
-            <label>Employee ID</label>
+            <label>Employee ID <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="text" id="addEmpId" placeholder="Employee ID" />
           </div>
           <div class="form-group full-width">
-            <label>Username</label>
+            <label>Username <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="text" id="addUsername" placeholder="Username" />
           </div>
           <div class="form-group full-width">
-            <label>Password</label>
+            <label>Password <span class="required-indicator" aria-hidden="true">*</span></label>
             <div class="password-row">
               <input type="text" id="addPassword" placeholder="Password" class="pwd-input" />
               <button type="button" class="btn-generate" onclick="generatePassword()">Generate Password</button>
             </div>
           </div>
           <div class="form-group full-width">
-            <label>Designation / Position</label>
+            <label>Confirm Password <span class="required-indicator" aria-hidden="true">*</span></label>
+            <input type="password" id="addPasswordConfirmation" placeholder="Confirm Password" />
+          </div>
+          <div class="form-group full-width">
+            <label>Designation / Position <span class="required-indicator" aria-hidden="true">*</span></label>
             <input type="text" id="addDesignation" placeholder="Designation / Position" />
           </div>
           <div class="form-group full-width">
-            <label>Office / Department / Division</label>
+            <label>Office / Department / Division <span class="required-indicator" aria-hidden="true">*</span></label>
             <select id="addOffice">
               <option value="">Select Office/Department/Division</option>
               <option>Information and Communications Technology Division</option>
@@ -663,7 +667,7 @@
             </select>
           </div>
           <div class="form-group full-width">
-            <label>Account Role</label>
+            <label>Account Role <span class="required-indicator" aria-hidden="true">*</span></label>
             <select id="addRole">
               <option value="">Select Account Role</option>
               <option value="User">User</option>
@@ -688,7 +692,7 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group">
-          <label>First Name</label>
+          <label>First Name <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="text" id="editFirstName" placeholder="First Name" />
         </div>
         <div class="form-group">
@@ -696,27 +700,27 @@
           <input type="text" id="editMiddleName" placeholder="Middle Name" />
         </div>
         <div class="form-group">
-          <label>Last Name</label>
+          <label>Last Name <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="text" id="editLastName" placeholder="Last Name" />
         </div>
         <div class="form-group">
-          <label>Email</label>
+          <label>Email <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="email" id="editEmail" placeholder="Email" />
         </div>
         <div class="form-group full-width">
-          <label>Employee ID</label>
+          <label>Employee ID <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="text" id="editEmpId" readonly style="opacity:0.7;cursor:not-allowed;" />
         </div>
         <div class="form-group full-width">
-          <label>Username</label>
+          <label>Username <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="text" id="editUsername" placeholder="Username" />
         </div>
         <div class="form-group full-width">
-          <label>Designation / Position</label>
+          <label>Designation / Position <span class="required-indicator" aria-hidden="true">*</span></label>
           <input type="text" id="editDesignation" placeholder="Designation / Position" />
         </div>
         <div class="form-group full-width">
-          <label>Office / Department / Division</label>
+          <label>Office / Department / Division <span class="required-indicator" aria-hidden="true">*</span></label>
           <select id="editOffice">
             <option value="">Select</option>
             <option>Information and Communications Technology Division</option>
@@ -727,7 +731,7 @@
           </select>
         </div>
         <div class="form-group full-width">
-          <label>Account Role</label>
+          <label>Account Role <span class="required-indicator" aria-hidden="true">*</span></label>
           <select id="editRole">
             <option value="User">User</option>
             <option value="Admin">Admin</option>

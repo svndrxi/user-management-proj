@@ -48,6 +48,7 @@ class UserController extends Controller
             'office_id'          => (int) $validated['office_id'],
             'role_id'            => (int) $validated['role_id'],
             'email_verified_at'  => now(),
+            
         ];
 
         $payload['password'] = Hash::make($validated['password']);
