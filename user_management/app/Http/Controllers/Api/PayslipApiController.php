@@ -131,6 +131,8 @@ class PayslipApiController extends Controller
         'net_pay'           => ['nullable', 'numeric'],
         'pay_15th'          => ['nullable', 'numeric'],
         'pay_30th'          => ['nullable', 'numeric'],
+        '15thDate'          => ['nullable', 'date'],
+        '30thDate'          => ['nullable', 'date'],
 
         // Others
         'aom_2013_014'      => ['nullable', 'numeric', 'min:0'],
@@ -225,6 +227,8 @@ class PayslipApiController extends Controller
         'net_pay'           => ['sometimes', 'nullable', 'numeric'],
         'pay_15th'          => ['sometimes', 'nullable', 'numeric'],
         'pay_30th'          => ['sometimes', 'nullable', 'numeric'],
+        '15thDate'          => ['sometimes', 'nullable', 'date'],
+        '30thDate'          => ['sometimes', 'nullable', 'date'],
 
         // Others
         'aom_2013_014'      => ['sometimes', 'nullable', 'numeric', 'min:0'],
@@ -509,6 +513,8 @@ class PayslipApiController extends Controller
                         'net_pay' => ['net_pay', 'netpay'],
                         'pay_15th' => ['pay_15th', '15th', 'first_payout_amount', 'firstpayoutamount'],
                         'pay_30th' => ['pay_30th', '30th', 'second_payout_amount', 'secondpayoutamount'],
+                        '15thDate' => ['15thdate', '15th_date', '15th_dop', 'first_payout_date', 'firstpayoutdate', 'payout_date_15th', 'payout15th'],
+                        '30thDate' => ['30thdate', '30th_date', '30th_dop', 'second_payout_date', 'secondpayoutdate', 'payout_date_30th', 'payout30th'],
                     ];
 
                     $get = function (string $field) use ($row, $aliases) {
@@ -556,6 +562,15 @@ class PayslipApiController extends Controller
                         'designation' => $designation !== '' ? $designation : 'N/A',
                         'is_archived' => false,
                     ];
+
+                    $pay15Date = $this->normalizePayrollDate($get('15thDate'));
+                    $pay30Date = $this->normalizePayrollDate($get('30thDate'));
+                    if ($pay15Date !== null) {
+                        $payload['15thDate'] = $pay15Date;
+                    }
+                    if ($pay30Date !== null) {
+                        $payload['30thDate'] = $pay30Date;
+                    }
 
                     $numericFields = [
                         'monthly_salary',
@@ -851,9 +866,8 @@ class PayslipApiController extends Controller
     private function renderPayslipTemplateHtml(string $html, Payslip $payslip): string
     {
         $payPeriodIso = $payslip->pay_period ? Carbon::parse($payslip->pay_period)->format('Y-m-d') : '';
-
-        $pay15Iso = $this->computePayoutDate($payPeriodIso, 14);
-        $pay30Iso = $this->computePayoutDate($payPeriodIso, 28);
+        $pay15Iso = $this->normalizePayrollDate($payslip->{'15thDate'} ?? null) ?? '';
+        $pay30Iso = $this->normalizePayrollDate($payslip->{'30thDate'} ?? null) ?? '';
 
         $tokenValues = [
             'employee_id' => (string) ($payslip->employee_id ?? ''),
@@ -1032,19 +1046,6 @@ class PayslipApiController extends Controller
             return Carbon::parse($isoDate)->format('F Y');
         } catch (\Throwable) {
             return $isoDate;
-        }
-    }
-
-    private function computePayoutDate(string $payPeriodIso, int $day): string
-    {
-        if ($payPeriodIso === '') {
-            return '';
-        }
-
-        try {
-            return Carbon::parse($payPeriodIso)->setDay($day)->format('Y-m-d');
-        } catch (\Throwable) {
-            return '';
         }
     }
 

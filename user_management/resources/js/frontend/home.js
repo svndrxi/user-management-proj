@@ -159,6 +159,8 @@ function escapeHtml(value) {
 
 function normalizePayslip(p) {
   const payPeriod = String(p.pay_period || p.payPeriod || p.payroll_date || p.payrollDate || '').slice(0, 10);
+  const payout15Date = String(p['15thDate'] || p.payout15Date || p.payout_15_date || '').slice(0, 10);
+  const payout30Date = String(p['30thDate'] || p.payout30Date || p.payout_30_date || '').slice(0, 10);
 
   return {
     id: p.id,
@@ -167,6 +169,8 @@ function normalizePayslip(p) {
     department: p.department || '',
     designation: p.designation || '',
     payPeriod,
+    payout15Date,
+    payout30Date,
   };
 }
 

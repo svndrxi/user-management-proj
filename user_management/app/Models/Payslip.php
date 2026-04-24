@@ -71,6 +71,8 @@ class Payslip extends Model
         'net_pay',
         'pay_15th',
         'pay_30th',
+        '15thDate',
+        '30thDate',
         'aom_2013_014',
         'cna_2009',
         'dorm_fee',
@@ -80,8 +82,8 @@ class Payslip extends Model
 
     protected $casts = [
         'pay_period' => 'date',
-        '15th_dop' => 'date',
-        '30th_dop' => 'date',
+        '15thDate' => 'date',
+        '30thDate' => 'date',
         'is_archived' => 'boolean',
     ];
 }
