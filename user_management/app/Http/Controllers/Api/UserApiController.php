@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -76,16 +77,10 @@ class UserApiController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('view-users');
+
         /** @var User|null $actor */
         $actor = $request->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         $perPage = (int) $request->integer('per_page', 15);
 
@@ -114,12 +109,10 @@ class UserApiController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        Gate::authorize('manage-users');
+
         /** @var User|null $actor */
         $actor = $request->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
 
         $validated = $request->validate([
             'employee_id' => ['required', 'string', 'max:255', 'unique:users,employee_id'],
@@ -174,16 +167,10 @@ class UserApiController extends Controller
 
     public function show(User $user): JsonResponse
     {
+        Gate::authorize('view-users');
+
         /** @var User|null $actor */
         $actor = request()->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         if ($actor->id !== $user->id && ! $this->canManageOther($actor, $user)) {
             return response()->json(['message' => 'Forbidden.'], 403);
@@ -196,16 +183,10 @@ class UserApiController extends Controller
 
     public function update(Request $request, User $user): JsonResponse
     {
+        Gate::authorize('manage-users');
+
         /** @var User|null $actor */
         $actor = $request->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         if ($actor->id !== $user->id && ! $this->canManageOther($actor, $user)) {
             return response()->json(['message' => 'Forbidden.'], 403);
@@ -273,16 +254,10 @@ class UserApiController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        Gate::authorize('manage-users');
+
         /** @var User|null $actor */
         $actor = auth()->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         if ($actor->id === $user->id) {
             return response()->json(['message' => 'You cannot archive your own account.'], 403);
@@ -301,16 +276,10 @@ class UserApiController extends Controller
 
     public function unarchive(User $user): JsonResponse
     {
+        Gate::authorize('manage-users');
+
         /** @var User|null $actor */
         $actor = auth()->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         if ($actor->id === $user->id) {
             return response()->json(['message' => 'You cannot unarchive your own account.'], 403);
@@ -336,16 +305,10 @@ class UserApiController extends Controller
 
     public function softDelete(User $user): JsonResponse
     {
+        Gate::authorize('manage-users');
+
         /** @var User|null $actor */
         $actor = auth()->user();
-
-        if (! $actor) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        if (! ($this->isAdmin($actor) || $this->isSystemAdmin($actor))) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
 
         if ($actor->id === $user->id) {
             return response()->json(['message' => 'You cannot delete your own account.'], 403);

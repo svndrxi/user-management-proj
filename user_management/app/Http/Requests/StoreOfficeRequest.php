@@ -3,12 +3,13 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class StoreOfficeRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermission('manage_offices') ?? false;
+        return Gate::allows('manage-offices');
     }
 
     public function rules(): array

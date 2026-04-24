@@ -50,9 +50,9 @@ Route::middleware(['auth', 'nocache'])->group(function () {
     Route::view('/dashboard/manager', 'dashboard.admin')->name('dashboard.manager')->middleware('role:Manager');
 });
 
-Route::middleware(['auth', 'role:System Admin,Admin', 'nocache'])->group(function () {
+Route::middleware(['auth', 'can:access-admin-backend', 'nocache'])->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('offices', OfficeController::class);
-    Route::resource('roles', RoleController::class);
+    Route::resource('roles', RoleController::class)->only(['index', 'show']);
     Route::resource('activity-logs', ActivityLogController::class)->only(['index', 'show', 'destroy']);
 });

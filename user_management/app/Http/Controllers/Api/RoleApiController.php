@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class RoleApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('view-roles');
+
         $perPage = (int) $request->integer('per_page', 15);
 
         $roles = Role::query()
@@ -45,6 +48,8 @@ class RoleApiController extends Controller
 
     public function show(Role $role): JsonResponse
     {
+        Gate::authorize('view-roles');
+
         $role->load(['permissions', 'users']);
 
         return response()->json($role);

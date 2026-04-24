@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Office;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class OfficeApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        Gate::authorize('manage-offices');
+
         $perPage = (int) $request->integer('per_page', 15);
 
         $offices = Office::query()
@@ -24,6 +27,8 @@ class OfficeApiController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        Gate::authorize('manage-offices');
+
         $validated = $request->validate([
             'office_code' => ['required', 'string', 'max:255', 'unique:offices,office_code'],
             'name' => ['required', 'string', 'max:255'],
@@ -37,6 +42,8 @@ class OfficeApiController extends Controller
 
     public function show(Office $office): JsonResponse
     {
+        Gate::authorize('manage-offices');
+
         $office->load('users');
 
         return response()->json($office);
@@ -44,6 +51,8 @@ class OfficeApiController extends Controller
 
     public function update(Request $request, Office $office): JsonResponse
     {
+        Gate::authorize('manage-offices');
+
         $validated = $request->validate([
             'office_code' => ['required', 'string', 'max:255', Rule::unique('offices', 'office_code')->ignore($office->id)],
             'name' => ['required', 'string', 'max:255'],
@@ -57,6 +66,8 @@ class OfficeApiController extends Controller
 
     public function destroy(Office $office): JsonResponse
     {
+        Gate::authorize('manage-offices');
+
         if ($office->users()->exists()) {
             return response()->json([
                 'message' => 'Cannot delete an office with assigned users.',

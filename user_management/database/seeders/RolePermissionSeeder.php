@@ -45,6 +45,7 @@ class RolePermissionSeeder extends Seeder
             'manage_users',
             'view_roles',
             'manage_roles',
+            'manage_offices',
         ]));
 
         $systemAdminRole->permissions()->sync(

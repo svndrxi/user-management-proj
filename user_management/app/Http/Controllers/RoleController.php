@@ -7,12 +7,15 @@ use App\Http\Requests\UpdateRoleRequest;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class RoleController extends Controller
 {
     public function index(): View
     {
+        Gate::authorize('view-roles');
+
         $roles = Role::query()
             ->withCount('users')
             ->with('permissions')
@@ -47,6 +50,8 @@ class RoleController extends Controller
 
     public function show(Role $role): View
     {
+        Gate::authorize('view-roles');
+
         $role->load([
             'permissions',
             'users' => fn ($query) => $query->with('office')->orderBy('last_name'),

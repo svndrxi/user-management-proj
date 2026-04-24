@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -43,10 +44,7 @@ class ActivityLogController extends Controller
 
     public function destroy(ActivityLog $activityLog): RedirectResponse
     {
-        // Only system admins may delete audit log entries
-        if (! auth()->user()?->hasRole('System Admin')) {
-            abort(403, 'Only system administrators may delete activity logs.');
-        }
+        Gate::authorize('delete-activity-logs');
 
         $activityLog->delete();
 
